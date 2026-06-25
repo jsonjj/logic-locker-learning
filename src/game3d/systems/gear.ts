@@ -19,6 +19,10 @@ export interface GearItem {
   cooldownMs?: number
   /** If set, the shot detonates and damages every enemy within this radius (m). */
   aoe?: number
+  /** Shots fired per trigger pull (spread). Defaults to 1 for ranged weapons. */
+  projectiles?: number
+  /** Relative power tier for sorting/UI (higher = stronger). */
+  tier?: number
   // --- passive effects ---
   /** Extra lives granted while equipped (armor). */
   bonusLives?: number
@@ -99,6 +103,88 @@ export const GEAR: Record<string, GearItem> = {
     range: 16,
     cooldownMs: 950,
     aoe: 4.2,
+    tier: 3,
+  },
+  'scatter-smg': {
+    id: 'scatter-smg',
+    name: 'Scatter SMG',
+    slot: 'weapon',
+    icon: '🔱',
+    color: '#ffd166',
+    desc: 'Rattles out a tight 3-shot spray. Low damage per pellet, brutal up close.',
+    weaponKind: 'ranged',
+    damage: 1,
+    range: 14,
+    cooldownMs: 240,
+    projectiles: 3,
+    tier: 3,
+  },
+  'auto-rifle': {
+    id: 'auto-rifle',
+    name: 'Auto Rifle',
+    slot: 'weapon',
+    icon: '🪖',
+    color: '#7fe07f',
+    desc: 'Fast, dependable full-auto. Solid damage at range with a short cooldown.',
+    weaponKind: 'ranged',
+    damage: 2,
+    range: 22,
+    cooldownMs: 220,
+    tier: 4,
+  },
+  'flak-cannon': {
+    id: 'flak-cannon',
+    name: 'Flak Cannon',
+    slot: 'weapon',
+    icon: '🧨',
+    color: '#ff9f43',
+    desc: 'Hurls a 4-pellet shrapnel cone. Shreds packs of guards in one pull.',
+    weaponKind: 'ranged',
+    damage: 2,
+    range: 15,
+    cooldownMs: 700,
+    projectiles: 4,
+    tier: 4,
+  },
+  railgun: {
+    id: 'railgun',
+    name: 'Railgun',
+    slot: 'weapon',
+    icon: '🎯',
+    color: '#5ec8ff',
+    desc: 'Charged rail spike. Enormous range and damage — slow, but it deletes anything it touches.',
+    weaponKind: 'ranged',
+    damage: 6,
+    range: 36,
+    cooldownMs: 820,
+    tier: 5,
+  },
+  'war-cleaver': {
+    id: 'war-cleaver',
+    name: 'War Cleaver',
+    slot: 'weapon',
+    icon: '🪓',
+    color: '#ff6f8a',
+    desc: 'A brutal two-hand cleaver. Heavy melee that drops most guards in a single swing.',
+    weaponKind: 'melee',
+    damage: 5,
+    range: 3.4,
+    cooldownMs: 440,
+    tier: 4,
+  },
+  'plasma-cannon': {
+    id: 'plasma-cannon',
+    name: 'Plasma Cannon',
+    slot: 'weapon',
+    icon: '☄️',
+    color: '#ff4d6d',
+    desc: 'The arsenal capstone: a long-range plasma burst with a wide, devastating blast.',
+    weaponKind: 'ranged',
+    damage: 5,
+    range: 24,
+    cooldownMs: 1150,
+    aoe: 6.5,
+    tier: 6,
   },
   'riot-armor': {
     id: 'riot-armor',
@@ -231,9 +317,15 @@ export function rewardWheel(
   add('riot-armor', 2 + tier * 0.4)
   add('medkit', mistakes > 0 ? 3 : 1.5)
   add('stun-baton', 1.5 + tier * 0.4)
-  add('laser-rifle', (effectiveFlawless ? 3 : 1.2) + tier * 0.7) // the payoff gun, likelier late
+  add('scatter-smg', 1.4 + tier * 0.4) // spray weapon, mid game
+  add('laser-rifle', (effectiveFlawless ? 2.4 : 1) + tier * 0.6) // the payoff gun, likelier late
+  add('auto-rifle', (effectiveFlawless ? 1.4 : 0.6) + tier * 0.5)
+  add('flak-cannon', 0.5 + tier * 0.5)
+  add('war-cleaver', 0.5 + tier * 0.45)
   add('energy-shield', 0.6 + tier * 0.6)
-  add('shock-emitter', (effectiveFlawless ? 1.5 : 0.5) + tier * 0.6)
+  add('shock-emitter', (effectiveFlawless ? 1.2 : 0.4) + tier * 0.5)
+  add('railgun', (effectiveFlawless ? 1 : 0.3) + tier * 0.55) // premium long-range
+  add('plasma-cannon', (effectiveFlawless ? 0.8 : 0.25) + tier * 0.5) // capstone, late only
 
   return entries
 }
@@ -245,8 +337,14 @@ export function rewardWheel(
  */
 const PRESTIGE_UNLOCK_ORDER = [
   'laser-rifle',
+  'auto-rifle',
+  'scatter-smg',
   'energy-shield',
   'shock-emitter',
+  'railgun',
+  'flak-cannon',
+  'war-cleaver',
+  'plasma-cannon',
   'riot-armor',
   'stun-baton',
   'combat-boots',
@@ -261,6 +359,80 @@ export function prestigeReward(owned: string[]): GearItem | undefined {
     if (!ownedSet.has(id) && GEAR[id]) return GEAR[id]
   }
   return undefined
+}
+
+// --- Weapon upgrades -------------------------------------------------------
+// Every weapon can be permanently improved along three tracks, each capped so
+// power stays bounded. Upgrades are bought with Tech Cores earned by clearing
+// rooms (clean/comeback runs pay more), and they stack on top of the weapon's
+// base stats — so the same gun gets meaningfully stronger the more you learn.
+
+export type UpgradeTrack = 'damage' | 'range' | 'projectiles'
+
+export interface UpgradeLevels {
+  damage: number
+  range: number
+  projectiles: number
+}
+
+export const ZERO_UPGRADES: UpgradeLevels = { damage: 0, range: 0, projectiles: 0 }
+
+/** Max levels per track, per weapon. */
+export const UPGRADE_CAP: Record<UpgradeTrack, number> = {
+  damage: 5,
+  range: 5,
+  projectiles: 3,
+}
+
+/** How much each level adds to the stat. */
+const UPGRADE_STEP: Record<UpgradeTrack, number> = {
+  damage: 1, // +1 damage per level
+  range: 3, // +3 m per level
+  projectiles: 1, // +1 shot per level
+}
+
+/** Absolute ceiling on shots per pull, no matter the base + upgrades. */
+export const MAX_PROJECTILES = 6
+
+export const UPGRADE_LABEL: Record<UpgradeTrack, string> = {
+  damage: 'Damage',
+  range: 'Range',
+  projectiles: 'Projectiles',
+}
+
+export const UPGRADE_ICON: Record<UpgradeTrack, string> = {
+  damage: '🗡️',
+  range: '🎯',
+  projectiles: '✳️',
+}
+
+/** Projectiles only make sense for direct-fire ranged guns (not melee / AoE). */
+export function trackApplies(base: GearItem, track: UpgradeTrack): boolean {
+  if (base.slot !== 'weapon') return false
+  if (track === 'projectiles') return base.weaponKind === 'ranged' && !base.aoe
+  return true
+}
+
+/** Cores needed to buy the NEXT level of a track (rises as you stack it). */
+export function upgradeCost(_track: UpgradeTrack, currentLevel: number): number {
+  return currentLevel + 1 // 1, 2, 3, … cores
+}
+
+export function canUpgrade(base: GearItem, levels: UpgradeLevels, track: UpgradeTrack): boolean {
+  if (!trackApplies(base, track)) return false
+  return (levels[track] ?? 0) < UPGRADE_CAP[track]
+}
+
+/** Apply a weapon's purchased upgrade levels to produce its live stats. */
+export function effectiveWeapon(base: GearItem, levels: UpgradeLevels = ZERO_UPGRADES): GearItem {
+  if (base.slot !== 'weapon') return base
+  const damage = (base.damage ?? 1) + (levels.damage ?? 0) * UPGRADE_STEP.damage
+  const range = (base.range ?? 0) + (levels.range ?? 0) * UPGRADE_STEP.range
+  const baseProj = base.projectiles ?? 1
+  const projectiles = trackApplies(base, 'projectiles')
+    ? Math.min(MAX_PROJECTILES, baseProj + (levels.projectiles ?? 0) * UPGRADE_STEP.projectiles)
+    : baseProj
+  return { ...base, damage, range, projectiles }
 }
 
 /** Pick a winning index from weighted entries. */

@@ -230,12 +230,18 @@
 
 .inv-item {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 10px 12px;
+}
+
+.inv-item-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .inv-item.is-equipped {
@@ -290,6 +296,96 @@
 
 .inv-tip b {
   color: #fff;
+}
+
+/* Tech Cores + weapon upgrades */
+.inv-cores {
+  margin-left: auto;
+  margin-right: 12px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: #ffd166;
+  background: rgba(255, 209, 102, 0.12);
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+
+.inv-upgrades {
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.inv-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inv-stat {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #cdd6e2;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.inv-tracks {
+  display: grid;
+  gap: 6px;
+}
+
+.inv-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inv-track-name {
+  flex: 0 0 110px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #aeb9c8;
+}
+
+.inv-pips {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+}
+
+.inv-pip {
+  width: 16px;
+  height: 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.inv-pip.on {
+  background: linear-gradient(135deg, #2aa7ff, #46e0c0);
+}
+
+.inv-buy {
+  flex: 0 0 auto;
+  min-width: 64px;
+  background: linear-gradient(135deg, #2a7dff, #2aa7ff);
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.76rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.inv-buy:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: #8c98a8;
+  cursor: not-allowed;
 }
 
 /* Game over */

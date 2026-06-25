@@ -162,7 +162,7 @@ function RoomInner({ sectorId }: { sectorId: string }) {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [near, setNear] = useState<'puzzle' | 'exit' | null>(null)
   const [result, setResult] = useState<LevelResult | null>(null)
-  const [wheel, setWheel] = useState<{ segments: GearItem[]; winnerIndex: number; flawless: boolean } | null>(null)
+  const [wheel, setWheel] = useState<{ segments: GearItem[]; winnerIndex: number; flawless: boolean; cores: number } | null>(null)
   const [isBest, setIsBest] = useState(false)
   const [priorBest, setPriorBest] = useState<LevelResult | null>(null)
   // 'learn' = briefing beat, 'play' = walk + crack the lock, 'results' = scored.
@@ -382,9 +382,16 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     // bends the odds toward stronger gear AND grants +1 life (applied when the
     // wheel is claimed), so reasoning your way clean beats guessing.
     const flawless = res.mistakes === 0
+    // Tech Cores: a guaranteed payout for clearing, on TOP of the random gear
+    // wheel — clean and fought-back (comeback) runs earn more, so the cores you
+    // spend on permanent weapon upgrades scale with how well you reason.
+    const coreReward = 2 + (flawless ? 2 : 0) + Math.min(comebacks, 3)
     const entries = rewardWheel(sectorId, flawless, res.mistakes, inv.owned, comebacks)
     if (entries.length > 0) {
-      setWheel({ segments: entries.map((e) => e.item), winnerIndex: pickWeightedIndex(entries), flawless })
+      setWheel({ segments: entries.map((e) => e.item), winnerIndex: pickWeightedIndex(entries), flawless, cores: coreReward })
+    } else {
+      inv.addCores(coreReward)
+      setToast(`+${coreReward} 🔧 Tech Cores`)
     }
     if (uid) {
       void saveLevelResult(uid, computed)
@@ -550,8 +557,9 @@ function RoomInner({ sectorId }: { sectorId: string }) {
           onResult={(item) => {
             const added = inv.addItem(item.id)
             if (wheel.flawless) run.gainLife()
+            inv.addCores(wheel.cores)
             setToast(
-              `${added ? 'Unlocked' : 'Bonus'} ${item.icon} ${item.name}${
+              `${added ? 'Unlocked' : 'Bonus'} ${item.icon} ${item.name} · +${wheel.cores} 🔧 Cores${
                 wheel.flawless ? ' · +1 life (flawless)' : ''
               }`,
             )

@@ -19,6 +19,7 @@ import { prestigeReward, type GearItem } from '../game3d/systems/gear'
 import { useAuth } from '../context/AuthContext'
 import { clearLevelResults } from '../firebase/results'
 import { R3D, vec3, type Vec3 } from '../game3d/contracts'
+import Cutscene from '../game3d/cutscene/Cutscene'
 import '../styles/finale.css'
 
 const HALL_W = 16
@@ -183,6 +184,8 @@ function FinaleInner() {
   const [elapsedSec, setElapsedSec] = useState(0)
   const [prestigeAward, setPrestigeAward] = useState<{ level: number; item: GearItem | null } | null>(null)
   const prestigeDone = useRef(false)
+  // Play the escape cinematic once the run ends, before the results card.
+  const [outroDone, setOutroDone] = useState(false)
 
   phaseRef.current = phase
   gameOverRef.current = run.isGameOver
@@ -534,7 +537,11 @@ function FinaleInner() {
         }}
       />
 
-      {phase === 'end' && (
+      {phase === 'end' && !outroDone && (
+        <Cutscene scene="sp-outro" onDone={() => setOutroDone(true)} />
+      )}
+
+      {phase === 'end' && outroDone && (
         <div className="finale-overlay">
           <div className="finale-card" data-ui>
             <div className="finale-escape">

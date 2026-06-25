@@ -19,6 +19,7 @@ import InventoryPanel from '../game3d/hud/InventoryPanel'
 import GameOver from '../game3d/hud/GameOver'
 import { SCATTERED_PICKUPS, gear } from '../game3d/systems/gear'
 import { getObjective, getIntroLines, getMissionTagline } from '../game3d/story/objectives'
+import Cutscene from '../game3d/cutscene/Cutscene'
 import { R3D, vec3, type SectorId, type Vec3 } from '../game3d/contracts'
 import { useSectorProgress } from '../sectors/useSectorProgress'
 import { isAuditDue } from '../firebase/reviewSchedule'
@@ -117,7 +118,25 @@ function WorldInner() {
     setShowIntro(false)
   }
 
-  const blocked = menuOpen || showIntro || invOpen || run.isGameOver
+  // One-shot cinematic that plays whenever the player enters single-player mode
+  // from the menu (Akash hauled off, the hero seized, then breaking free).
+  const [playIntroCut, setPlayIntroCut] = useState(() => {
+    try {
+      return sessionStorage.getItem('ll-cut-sp-intro') === '1'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    if (!playIntroCut) return
+    try {
+      sessionStorage.removeItem('ll-cut-sp-intro')
+    } catch {
+      /* ignore */
+    }
+  }, [playIntroCut])
+
+  const blocked = menuOpen || showIntro || invOpen || run.isGameOver || playIntroCut
 
   // Quick inventory toggle with the I key.
   useEffect(() => {
@@ -339,6 +358,10 @@ function WorldInner() {
         >
           Break in
         </button>
+      )}
+
+      {playIntroCut && (
+        <Cutscene scene="sp-intro" onDone={() => setPlayIntroCut(false)} />
       )}
 
       {showIntro && (

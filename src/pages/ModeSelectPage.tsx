@@ -59,7 +59,19 @@ export default function ModeSelectPage() {
       </div>
 
       <div className="mode-cards">
-        <button type="button" className="mode-card" onClick={() => navigate('/world')}>
+        <button
+          type="button"
+          className="mode-card"
+          onClick={() => {
+            // Flag the one-shot intro cutscene to play when the hub loads.
+            try {
+              sessionStorage.setItem('ll-cut-sp-intro', '1')
+            } catch {
+              /* ignore privacy-mode storage errors */
+            }
+            navigate('/world')
+          }}
+        >
           <span className="mode-card-icon" aria-hidden>🚪</span>
           <span className="mode-card-name">Single Player</span>
           <span className="mode-card-desc">

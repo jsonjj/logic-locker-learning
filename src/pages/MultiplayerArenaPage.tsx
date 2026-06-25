@@ -39,6 +39,7 @@ import SharedEnemies, { type EnemiesHandle, type LiveEnemy } from '../multiplaye
 import MpWeapon, { type MpWeaponProfile } from '../multiplayer/MpWeapon'
 import PlayerVitals from '../multiplayer/PlayerVitals'
 import MultiplayerHud from '../multiplayer/MultiplayerHud'
+import Cutscene from '../game3d/cutscene/Cutscene'
 import '../styles/multiplayer.css'
 
 export default function MultiplayerArenaPage() {
@@ -108,6 +109,11 @@ function Arena({ code, uid }: { code: string; uid: string }) {
   // Host round-resolution dedupe.
   const endedRoundRef = useRef(-1)
   const advancedRoundRef = useRef(-1)
+
+  // Cinematic gates: a one-shot "dragged into the arena" intro, and an outro
+  // when the series ends (winner escapes, the rest get swarmed).
+  const [mpIntroDone, setMpIntroDone] = useState(false)
+  const [endedCutDone, setEndedCutDone] = useState(false)
 
   const isHost = meta?.hostUid === uid
   const status = meta?.status
@@ -257,6 +263,15 @@ function Arena({ code, uid }: { code: string; uid: string }) {
       (a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.kills ?? 0) - (a.kills ?? 0),
     )
     const champ = roster.find((p) => p.uid === meta?.champion)
+    if (!endedCutDone) {
+      return (
+        <Cutscene
+          scene="mp-outro"
+          data={{ winnerName: champ?.name, youWon: champ?.uid === uid }}
+          onDone={() => setEndedCutDone(true)}
+        />
+      )
+    }
     return (
       <div className="mp-results">
         <div className="mp-results-card">
@@ -359,6 +374,10 @@ function Arena({ code, uid }: { code: string; uid: string }) {
       <button type="button" className="mp-leave" onClick={onLeave}>
         Leave
       </button>
+
+      {!mpIntroDone && (
+        <Cutscene scene="mp-intro" onDone={() => setMpIntroDone(true)} />
+      )}
     </div>
   )
 }

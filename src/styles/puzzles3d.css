@@ -834,6 +834,17 @@
   filter: saturate(0.7);
 }
 
+/* The step-visual components ship light-theme text colors (meant for a white
+   page). On this dark panel, their secondary labels — which sit on the panel,
+   not on the light boxes — need a brighter color to stay legible. (The light
+   boxes themselves pin their own dark text in global.css.) */
+.p3-frame .visual-title,
+.p3-frame .visual-caption,
+.p3-frame .symbol-cap,
+.p3-frame .dgrid th {
+  color: var(--p3-ink);
+}
+
 /* Hands-on mode makes interactive targets pop a little more. */
 .p3-device.mode-handson .p3-option,
 .p3-device.mode-handson .p3-bin,

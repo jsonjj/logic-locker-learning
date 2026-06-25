@@ -48,13 +48,15 @@ interface EnemySpawn {
 function buildEnemies(order: number, size: [number, number], prestige = 0): EnemySpawn[] {
   const [w, d] = size
   // Tougher, gear-gated: earning weapons/armor matters. The enemy COUNT ramps
-  // hard the deeper you go (the late blocks are swarms), while HP stays moderate
-  // so weak early guns and the late AoE both stay useful. Each PRESTIGE adds a
-  // guard or two and a little extra HP, so replays bite harder.
-  const count = Math.min(3 + Math.floor(order * 0.85) + prestige, 8)
-  const speed = 2.6 + order * 0.22 + prestige * 0.15
-  const hp = 3 + Math.round(order * 1.2) + prestige
-  const rangedCount = order < 2 ? Math.min(1, prestige) : order < 4 ? 2 : 3
+  // hard the deeper you go (the late blocks are swarms), and each PRESTIGE makes
+  // the guards meaningfully nastier — more of them, more HP, a touch faster — so
+  // even with a fully-kept arsenal the replay still fights back and stays worth
+  // trying. The base HP is high enough that weapon upgrades clearly matter.
+  const count = Math.min(3 + Math.floor(order * 0.85) + prestige, 8 + Math.min(prestige, 4))
+  const speed = 2.6 + order * 0.22 + prestige * 0.18
+  const hp = 4 + Math.round(order * 1.5) + prestige * 2
+  const rangedBase = order < 2 ? Math.min(1, prestige) : order < 4 ? 2 : 3
+  const rangedCount = Math.min(count, rangedBase + (prestige >= 2 ? 1 : 0))
   const slots: Vec3[] = [
     vec3(-w * 0.28, 1, -d * 0.1),
     vec3(w * 0.28, 1, -d * 0.16),
@@ -64,6 +66,11 @@ function buildEnemies(order: number, size: [number, number], prestige = 0): Enem
     vec3(0, 1, -d * 0.12),
     vec3(-w * 0.34, 1, -d * 0.24),
     vec3(w * 0.34, 1, -d * 0.24),
+    // Extra slots so high-prestige runs can field a bigger swarm.
+    vec3(-w * 0.16, 1, -d * 0.42),
+    vec3(w * 0.16, 1, -d * 0.42),
+    vec3(-w * 0.4, 1, -d * 0.38),
+    vec3(w * 0.4, 1, -d * 0.38),
   ]
   return slots.slice(0, count).map((spawn, i) => ({
     id: i + 1,
@@ -72,8 +79,8 @@ function buildEnemies(order: number, size: [number, number], prestige = 0): Enem
     hp,
     // Make the last `rangedCount` guards shooters.
     kind: i >= count - rangedCount ? 'ranged' : 'melee',
-    // A heavy hitter shows up from sector 4 on.
-    damage: order >= 3 && i === 0 ? 2 : 1,
+    // A heavy hitter shows up from sector 4 on; prestige promotes it harder.
+    damage: (order >= 3 && i === 0 ? 2 : 1) + (prestige >= 3 && i === 0 ? 1 : 0),
   }))
 }
 
@@ -82,15 +89,15 @@ function buildEnemies(order: number, size: [number, number], prestige = 0): Enem
  * around the room so a sloppy, guessed breach turns the escape into a fight —
  * a real cost for not actually reasoning it out.
  */
-function buildReinforcements(n: number, size: [number, number], startId: number): EnemySpawn[] {
+function buildReinforcements(n: number, size: [number, number], startId: number, prestige = 0): EnemySpawn[] {
   const [w, d] = size
   return Array.from({ length: n }, (_, i) => {
     const angle = (i / Math.max(1, n)) * Math.PI * 2
     return {
       id: startId + i,
       spawn: vec3(Math.cos(angle) * w * 0.3, 1, -d * 0.2 + Math.sin(angle) * d * 0.2),
-      speed: 2.8,
-      hp: 4,
+      speed: 2.8 + prestige * 0.15,
+      hp: 5 + prestige * 2,
       kind: (i % 3 === 0 ? 'ranged' : 'melee') as EnemyKind,
       damage: 1,
     }
@@ -338,7 +345,7 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     const comebacks = res.comebacks ?? 0
     const reinforce = Math.min(res.mistakes, 3)
     if (reinforce > 0) {
-      setEnemies((es) => [...es, ...buildReinforcements(reinforce, def?.size ?? [24, 20], 200 + es.length)])
+      setEnemies((es) => [...es, ...buildReinforcements(reinforce, def?.size ?? [24, 20], 200 + es.length, inv.prestige)])
     }
     // Stash the per-question debrief. If the player missed too many, surface the
     // review right away; otherwise it's available via a button on the results.
@@ -382,10 +389,11 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     // bends the odds toward stronger gear AND grants +1 life (applied when the
     // wheel is claimed), so reasoning your way clean beats guessing.
     const flawless = res.mistakes === 0
-    // Tech Cores: a guaranteed payout for clearing, on TOP of the random gear
-    // wheel — clean and fought-back (comeback) runs earn more, so the cores you
-    // spend on permanent weapon upgrades scale with how well you reason.
-    const coreReward = 2 + (flawless ? 2 : 0) + Math.min(comebacks, 3)
+    // Tech Cores: a small guaranteed payout for clearing, on TOP of the random
+    // gear wheel — clean and fought-back (comeback) runs earn a bit more. Kept
+    // deliberately stingy so fully upgrading a weapon is a long-term grind, not
+    // something you finish in a couple of rooms.
+    const coreReward = 1 + (flawless ? 1 : 0) + Math.min(comebacks, 2)
     const entries = rewardWheel(sectorId, flawless, res.mistakes, inv.owned, comebacks)
     if (entries.length > 0) {
       setWheel({ segments: entries.map((e) => e.item), winnerIndex: pickWeightedIndex(entries), flawless, cores: coreReward })

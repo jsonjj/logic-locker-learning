@@ -777,6 +777,7 @@ code {
   border-radius: 12px;
   background: var(--surface-alt);
   border: 2px solid var(--border-strong);
+  color: var(--text);
   display: grid;
   place-items: center;
   font-size: 1.9rem;
@@ -851,6 +852,9 @@ code {
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   font-size: 0.92rem;
+  /* These boxes are always light; pin dark text so they stay readable even
+     when rendered inside a dark panel (which sets a light inherited color). */
+  color: var(--text);
 }
 
 .visual-clue-num {
@@ -885,11 +889,12 @@ code {
   border-radius: var(--radius-sm);
   padding: 16px 12px;
   font-weight: 700;
+  color: var(--text);
 }
 
 .option-box.mark-X {
   border-color: var(--danger);
-  color: var(--text-faint);
+  color: var(--text-dim);
 }
 .option-box.mark-check {
   border-color: var(--primary);
@@ -927,6 +932,7 @@ code {
   background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
+  color: var(--text);
   padding: 8px 14px;
   font-weight: 700;
   font-size: 0.9rem;
@@ -1038,6 +1044,7 @@ code {
   border-radius: 10px;
   background: var(--surface-alt);
   border: 1.5px solid var(--border-strong);
+  color: var(--text);
   font-size: 1.5rem;
   font-weight: 900;
   cursor: pointer;

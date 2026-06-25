@@ -198,9 +198,9 @@ function FinaleInner() {
       inv.addItem(reward.id)
       inv.equip(reward.id)
     }
-    // A prestige also hands over a stack of Tech Cores so the replay can pour
-    // them straight into permanent weapon upgrades.
-    inv.addCores(8)
+    // A prestige hands over a modest stack of Tech Cores toward permanent
+    // weapon upgrades — enough to feel rewarded, not enough to max a weapon.
+    inv.addCores(4)
     inv.prestigeUp()
     // Reset room progress: the replay starts at room 1 and the Warden stays
     // locked until you clear every block again. Gear/upgrades are kept.

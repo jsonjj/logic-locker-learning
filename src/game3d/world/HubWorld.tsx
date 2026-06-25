@@ -1,8 +1,6 @@
 import { Floor, Wall, Door } from '../engine'
-import { PulseLight, PulseMaterial } from './decor'
 import { hubDef } from './rooms'
 import { paletteFor } from './palette'
-import { useQuality } from '../engine/quality'
 import { toTuple, type SectorId } from '../contracts'
 
 export interface HubWorldProps {
@@ -41,28 +39,15 @@ function DoorNumber({
   )
 }
 
-/**
- * A glowing ceiling light panel. The emissive panel is cheap and always drawn;
- * `withLight` decides whether it also casts a real (budgeted) dynamic light.
- */
-function CeilingLight({
-  position,
-  withLight,
-  phase,
-}: {
-  position: [number, number, number]
-  withLight: boolean
-  phase: number
-}) {
+/** A glowing ceiling light panel that also casts a little real light. */
+function CeilingLight({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
       <mesh>
         <boxGeometry args={[5, 0.25, 1.4]} />
-        <PulseMaterial color="#fdf6e3" emissive="#fff3d6" base={1.4} amp={0.22} speed={2.2} phase={phase} />
+        <meshStandardMaterial color="#fdf6e3" emissive="#fff3d6" emissiveIntensity={1.4} />
       </mesh>
-      {withLight && (
-        <PulseLight position={[0, -0.6, 0]} color="#ffe9c2" base={9} amp={0.8} speed={2.2} phase={phase} distance={26} />
-      )}
+      <pointLight position={[0, -0.6, 0]} intensity={9} distance={26} decay={2} color="#ffe9c2" />
     </group>
   )
 }
@@ -76,10 +61,8 @@ function CeilingLight({
 export default function HubWorld({ unlocked, objectiveSectorId, onEnterSector }: HubWorldProps) {
   const [w, d] = hubDef.size
   const p = paletteFor('yard')
-  const { maxLights } = useQuality()
 
-  // Ceiling light grid positions (6 panels). Only the first `maxLights` of them
-  // cast a real dynamic light; the rest stay emissive-only to honor the budget.
+  // Ceiling light grid positions.
   const lightCols = [-w / 4, w / 4]
   const lightRows = [-d / 3, 0, d / 3]
 
@@ -112,18 +95,10 @@ export default function HubWorld({ unlocked, objectiveSectorId, onEnterSector }:
       ))}
 
       {/* ceiling light grid */}
-      {lightRows.map((z, ri) =>
-        lightCols.map((x, ci) => {
-          const idx = ri * lightCols.length + ci
-          return (
-            <CeilingLight
-              key={`${x}_${z}`}
-              position={[x, WALL_H - 0.4, z]}
-              withLight={idx < maxLights}
-              phase={idx * 0.9}
-            />
-          )
-        }),
+      {lightRows.map((z) =>
+        lightCols.map((x) => (
+          <CeilingLight key={`${x}_${z}`} position={[x, WALL_H - 0.4, z]} />
+        )),
       )}
 
       {/* interior support columns */}
@@ -134,7 +109,7 @@ export default function HubWorld({ unlocked, objectiveSectorId, onEnterSector }:
       {/* central muster pad with a guiding glow ring */}
       <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[2.6, 3.1, 48]} />
-        <PulseMaterial color={p.glow} emissive={p.glow} base={0.7} amp={0.3} speed={2} />
+        <meshStandardMaterial color={p.glow} emissive={p.glow} emissiveIntensity={0.7} />
       </mesh>
 
       {hubDef.doors.map((door, i) => {

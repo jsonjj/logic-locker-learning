@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
-import { PerspectiveCamera, Vector3, type Group } from 'three'
+import { Vector3, type Group } from 'three'
 import Character from '../character/Character'
 import { useGameState } from '../state/GameStateContext'
 import type { ThirdPersonPlayerProps } from '../contracts'
 import { getJoyInput, startJoyEventBridge } from './input'
 import { prefersReducedMotion } from './prefersReducedMotion'
-import { effectsAllowed } from './quality'
-import { getShakeOffset } from '../combat/effects/shake'
-import { drainFovKick } from '../combat/effects/cameraPunch'
 
 /**
  * Physics-driven third-person character controller (Agent 1).
@@ -34,11 +31,6 @@ const CAM_LOOK_HEIGHT = 1.2
 // the player toward the objective doors (which sit on the far -z wall).
 const CAM_YAW = Math.PI
 
-// Camera juice tuning.
-const FOV_PUNCH = 4.2 // degrees added per fire/dash impulse
-const FOV_PUNCH_MAX = 7 // clamp so rapid fire can't tunnel the FOV
-const FOV_RECOVER = 11 // exp recovery rate (1/s) back to the base FOV
-
 const keys: Record<string, boolean> = {}
 
 export default function ThirdPersonPlayer({ spawn, frozen, onMove }: ThirdPersonPlayerProps) {
@@ -60,13 +52,6 @@ export default function ThirdPersonPlayer({ spawn, frozen, onMove }: ThirdPerson
   const camTarget = useRef(new Vector3())
   const lookTarget = useRef(new Vector3())
   const camOffset = useRef(new Vector3())
-  // Shake-free smoothed follow position (shake is layered on top for the view
-  // only, so it never drifts the actual follow target).
-  const camPos = useRef(new Vector3())
-  const camInit = useRef(false)
-  // FOV "punch": a small additive zoom that decays back to the base fov.
-  const baseFov = useRef<number | null>(null)
-  const fovPunch = useRef(0)
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -163,45 +148,10 @@ export default function ThirdPersonPlayer({ spawn, frozen, onMove }: ThirdPerson
       -Math.cos(camYaw.current) * CAM_DISTANCE,
     )
     camTarget.current.set(t.x, t.y, t.z).add(camOffset.current)
-    // Track the follow position on a shake-free vector so the screen shake we
-    // layer on below never accumulates / drifts the camera.
-    if (!camInit.current) {
-      camPos.current.copy(camTarget.current)
-      camInit.current = true
-    }
-    // Frame-rate independent smoothing; reduced-motion snaps (no positional lag).
     const camA = reduce ? 1 : 1 - Math.exp(-6 * dt)
-    camPos.current.lerp(camTarget.current, camA)
-    camera.position.copy(camPos.current)
+    camera.position.lerp(camTarget.current, camA)
     lookTarget.current.set(t.x, t.y + CAM_LOOK_HEIGHT, t.z)
     camera.lookAt(lookTarget.current)
-
-    // --- Camera juice: FOV punch + screen shake (decorative; gated) ----------
-    if (camera instanceof PerspectiveCamera) {
-      if (baseFov.current === null) baseFov.current = camera.fov
-      if (effectsAllowed() && !reduce) {
-        const kick = drainFovKick()
-        if (kick > 0) fovPunch.current = Math.min(FOV_PUNCH_MAX, fovPunch.current + kick * FOV_PUNCH)
-        fovPunch.current *= Math.exp(-FOV_RECOVER * dt)
-        if (fovPunch.current < 0.01) fovPunch.current = 0
-      } else {
-        // Snap off when effects/shake are disallowed.
-        fovPunch.current = 0
-      }
-      const targetFov = baseFov.current + fovPunch.current
-      if (Math.abs(camera.fov - targetFov) > 0.001) {
-        camera.fov = targetFov
-        camera.updateProjectionMatrix()
-      }
-    }
-    // Screen shake — purely visual translation on top of the follow position.
-    // getShakeOffset already returns zero when shake is disallowed (low/reduced).
-    const shake = getShakeOffset(dt)
-    if (shake.x !== 0 || shake.y !== 0 || shake.z !== 0) {
-      camera.position.x += shake.x
-      camera.position.y += shake.y
-      camera.position.z += shake.z
-    }
 
     // --- Animation flag (state only flips on threshold crossing) ------------
     if (isMoving !== movingRef.current) {

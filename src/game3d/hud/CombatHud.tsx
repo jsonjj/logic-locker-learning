@@ -1,8 +1,6 @@
 import type { GearItem } from '../systems/gear'
 import { useHoldFire } from './useHoldFire'
-import { effectsAllowed, useQuality } from '../engine/quality'
 import '../../styles/combat.css'
-import '../../styles/animations.css'
 
 export interface CombatHudProps {
   lives: number
@@ -33,12 +31,10 @@ export default function CombatHud({
   const low = timeLeftSec !== null && timeLeftSec <= 15
   const hearts = Array.from({ length: Math.max(maxLives, lives) }, (_, i) => i < lives)
   const holdFire = useHoldFire()
-  useQuality()
-  const animate = effectsAllowed()
 
   return (
     <>
-      <div className={`combat-top${animate ? ' hud-anim-in-centered' : ''}`}>
+      <div className="combat-top">
         <div className="combat-lives" aria-label={`${lives} of ${maxLives} lives`}>
           {hearts.map((on, i) => (
             <span key={i} className={`combat-heart${on ? '' : ' is-lost'}`}>
@@ -56,7 +52,7 @@ export default function CombatHud({
 
       <button
         type="button"
-        className={`combat-weapon${animate ? ' hud-pop-in' : ''}`}
+        className="combat-weapon"
         onClick={onOpenInventory}
         data-ui
         title="Open inventory"

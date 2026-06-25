@@ -4,11 +4,7 @@ import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/r
 import type { Group } from 'three'
 import { useGameState } from '../state/GameStateContext'
 import { useCombat } from './CombatContext'
-import { effectsAllowed } from '../engine/quality'
-import { clamp01 } from './effects/shared'
 import type { Vec3 } from '../contracts'
-
-const SPAWN_MS = 280
 
 const SEEK_RANGE = 34
 const ATTACK_RANGE = 16
@@ -40,7 +36,6 @@ export default function Ally({ id, spawn, speed = 3.3, paused = false }: AllyPro
   const rig = useRef<Group>(null)
   const lastShot = useRef(0)
   const beamUntil = useRef(0)
-  const spawnAt = useRef(performance.now())
   const [beam, setBeam] = useState<Beam | null>(null)
   const gs = useGameState()
   const combat = useCombat()
@@ -62,25 +57,6 @@ export default function Ally({ id, spawn, speed = 3.3, paused = false }: AllyPro
     const rb = body.current
     if (!rb) return
     const v = rb.linvel()
-
-    // Decorative spawn pop + idle bob (snaps off on low / reduced motion).
-    if (rig.current) {
-      if (effectsAllowed()) {
-        const now = performance.now()
-        const se = clamp01((now - spawnAt.current) / SPAWN_MS)
-        let scale = 1
-        if (se < 1) {
-          const c1 = 1.70158
-          const c3 = c1 + 1
-          scale = 1 + c3 * Math.pow(se - 1, 3) + c1 * Math.pow(se - 1, 2)
-        }
-        rig.current.scale.setScalar(scale)
-        rig.current.position.y = -0.9 + Math.sin(now * 0.004 + id) * 0.05
-      } else {
-        rig.current.scale.setScalar(1)
-        rig.current.position.y = -0.9
-      }
-    }
 
     if (paused || gs.paused) {
       rb.setLinvel({ x: 0, y: v.y, z: 0 }, true)

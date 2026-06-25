@@ -6,7 +6,6 @@
 import { useState } from 'react'
 import type { OrderingItem, OrderingStep, SkillId } from '../../types'
 import { failedMoveFor, type LearningMode } from '../skills'
-import { effectsAllowed, useQuality } from '../engine/quality'
 import type { DeviceCallbacks } from './types'
 
 interface Props extends DeviceCallbacks {
@@ -32,8 +31,6 @@ export default function WiringSequencePanel({ step, onSolved, onMistake, mode, s
   const [attempts, setAttempts] = useState(0)
   const [wrong, setWrong] = useState(false)
   const [solved, setSolved] = useState(false)
-  useQuality()
-  const juiced = effectsAllowed()
 
   const move = (index: number, delta: number) => {
     if (solved) return
@@ -72,11 +69,7 @@ export default function WiringSequencePanel({ step, onSolved, onMistake, mode, s
   }
 
   return (
-    <div
-      className={`p3-device${mode ? ` mode-${mode}` : ''}${juiced ? ' is-juiced' : ''}${
-        solved ? ' is-solved' : ''
-      }`}
-    >
+    <div className={`p3-device${mode ? ` mode-${mode}` : ''}`}>
       <p className="p3-prompt">{step.prompt}</p>
       {mode === 'handson' && (
         <p className="p3-affordance">Reorder the leads with ▲ / ▼ to build the sequence, then test.</p>

@@ -24,7 +24,6 @@ import { buildQuiz, deviceKindForStep, deviceLabel } from './routes'
 import type { InteractiveStep } from './types'
 import DeviceRenderer from './DeviceRenderer'
 import LockInset from './LockInset'
-import { effectsAllowed } from '../engine/quality'
 import { usePuzzleTimer } from './usePuzzleTimer'
 import StepVisual from '../../components/StepVisual'
 import { DEFAULT_MODE, learningModeDef, sectorSkillId, type LearningMode } from '../skills'
@@ -96,9 +95,6 @@ export default function PuzzleScene({
   const [showHint, setShowHint] = useState(false)
   const [workedDismissed, setWorkedDismissed] = useState(false)
   const [, forceTick] = useState(0)
-  // Increments each time a wrong-then-fixed question is cleared, retriggering the
-  // "Nice recovery!" celebration. 0 = never fired yet.
-  const [comebackFlash, setComebackFlash] = useState(0)
 
   // The quiz is built once per run. Mode is passed for API symmetry but does not
   // change WHICH questions appear — only the presentation below differs.
@@ -150,13 +146,7 @@ export default function PuzzleScene({
   }
 
   const handleSolved = () => {
-    // A "comeback" = this question had >=1 wrong attempt before being solved.
-    // Celebrate it MORE than a first-try correct — this game rewards the dip.
-    const wasComeback = stepMistakes.current > 0
     recordCurrent()
-    if (wasComeback && effectsAllowed()) {
-      setComebackFlash((n) => n + 1)
-    }
     if (stepIndex + 1 < quiz.length) {
       setStepIndex((i) => i + 1)
       stepMistakes.current = 0
@@ -263,44 +253,6 @@ export default function PuzzleScene({
             Abandon breach
           </button>
         </footer>
-
-        {comebackFlash > 0 && <ComebackBurst key={comebackFlash} />}
-      </div>
-    </div>
-  )
-}
-
-/**
- * A brief, celebratory "Nice recovery!" flourish shown when a player corrects a
- * question they first got wrong. Deliberately punchier than first-try success.
- * Mounted with a changing key so it replays; the controller only renders it when
- * effectsAllowed() is true, so it is already gated on quality + reduced-motion.
- */
-function ComebackBurst() {
-  const sparks = useMemo(() => {
-    const count = 9
-    return Array.from({ length: count }, (_, i) => {
-      const angle = (i / count) * Math.PI * 2
-      const dist = 64 + (i % 3) * 14
-      return {
-        dx: `${Math.cos(angle) * dist}px`,
-        dy: `${Math.sin(angle) * dist}px`,
-        delay: `${(i % 4) * 30}ms`,
-      }
-    })
-  }, [])
-  return (
-    <div className="p3-comeback" aria-hidden>
-      <div className="p3-comeback-badge">
-        {sparks.map((s, i) => (
-          <span
-            key={i}
-            className="p3-comeback-spark"
-            style={{ '--dx': s.dx, '--dy': s.dy, animationDelay: s.delay } as React.CSSProperties}
-          />
-        ))}
-        <span className="p3-comeback-title">Nice recovery! ✦</span>
-        <span className="p3-comeback-sub">Fixed it yourself — that&apos;s the win</span>
       </div>
     </div>
   )

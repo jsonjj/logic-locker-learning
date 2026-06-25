@@ -1,5 +1,4 @@
 import type { StarRank } from '../game/lockdown/contracts'
-import { effectsAllowed, useQuality } from '../game3d/engine/quality'
 import '../styles/scoring.css'
 
 interface StarRowProps {
@@ -40,13 +39,10 @@ function Star({
 
 /** A row of three stars, filled according to the earned rank. */
 export default function StarRow({ stars, size = 32, animate = false }: StarRowProps) {
-  // Snap (no pop) under reduced-motion or the low quality tier.
-  useQuality()
-  const doAnimate = animate && effectsAllowed()
   return (
     <div className="ll-star-row" role="group" aria-label={`${stars} of ${TOTAL_STARS} stars`}>
       {Array.from({ length: TOTAL_STARS }, (_, i) => (
-        <Star key={i} index={i} filled={i < stars} size={size} animate={doAnimate && i < stars} />
+        <Star key={i} index={i} filled={i < stars} size={size} animate={animate && i < stars} />
       ))}
     </div>
   )

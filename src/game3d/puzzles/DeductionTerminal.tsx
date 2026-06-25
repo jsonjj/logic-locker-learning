@@ -7,7 +7,6 @@ import { useMemo, useState } from 'react'
 import type { DeductionGridStep, GridSymbol, SingleCellGridStep, SkillId } from '../../types'
 import { cellKey, checkGrid, wrongCells } from '../../logic/gridCheckers'
 import { failedMoveFor, type LearningMode } from '../skills'
-import { effectsAllowed, useQuality } from '../engine/quality'
 import type { DeviceCallbacks } from './types'
 
 interface Props extends DeviceCallbacks {
@@ -34,8 +33,6 @@ export default function DeductionTerminal({ step, onSolved, onMistake, mode, ski
   const [wrong, setWrong] = useState<string[]>([])
   const [attempts, setAttempts] = useState(0)
   const [solved, setSolved] = useState(false)
-  useQuality()
-  const juiced = effectsAllowed()
 
   const targetKey = isSingle ? cellKey(step.targetRow, step.targetCol) : null
 
@@ -85,11 +82,7 @@ export default function DeductionTerminal({ step, onSolved, onMistake, mode, ski
   }
 
   return (
-    <div
-      className={`p3-device${mode ? ` mode-${mode}` : ''}${juiced ? ' is-juiced' : ''}${
-        solved ? ' is-solved' : ''
-      }`}
-    >
+    <div className={`p3-device${mode ? ` mode-${mode}` : ''}`}>
       <p className="p3-prompt">{step.prompt}</p>
       {mode === 'handson' && (
         <p className="p3-affordance">Tap each cell to cycle ✓ / ✕, then run the verify pass.</p>

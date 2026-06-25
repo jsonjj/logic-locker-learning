@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useGameState } from '../state/GameStateContext'
 import { useCombat, type PosHandle } from '../combat/CombatContext'
-import { useQuality } from '../engine/quality'
-import { prefersReducedMotion } from '../engine/prefersReducedMotion'
 import { hubDef } from './rooms'
 import type { RoomDef } from '../contracts'
 import '../../styles/world3d.css'
@@ -51,10 +49,6 @@ interface MarkerSpec {
 export default function Minimap({ variant, def, custom, extraMarkers }: MinimapProps) {
   const game = useGameState()
   const combat = useCombat()
-  // Reactive equivalent of effectsAllowed() for this DOM overlay: drop the
-  // objective/guide-line pulse on the 'low' tier and under reduced motion.
-  const quality = useQuality()
-  const motion = quality.effects && !prefersReducedMotion()
   // Keep refs to the latest context values so the rAF loop reads fresh data
   // without re-subscribing every frame.
   const gameRef = useRef(game)
@@ -232,23 +226,11 @@ export default function Minimap({ variant, def, custom, extraMarkers }: MinimapP
           <div key={m.key} className={m.className} style={{ left: `${m.x}px`, top: `${m.y}px` }} />
         ))}
         <svg className="ll-minimap__lines" width={STAGE} height={STAGE} aria-hidden="true">
-          <line
-            ref={lineRef}
-            className={`ll-minimap__line${motion ? '' : ' ll-minimap__line--still'}`}
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="0"
-            style={{ display: 'none' }}
-          />
+          <line ref={lineRef} className="ll-minimap__line" x1="0" y1="0" x2="0" y2="0" style={{ display: 'none' }} />
         </svg>
         <div ref={enemyLayerRef} className="ll-minimap__layer" />
         <div ref={allyLayerRef} className="ll-minimap__layer" />
-        <div
-          ref={objectiveRef}
-          className={`ll-minimap__objective${motion ? '' : ' ll-minimap__objective--still'}`}
-          style={{ display: 'none' }}
-        />
+        <div ref={objectiveRef} className="ll-minimap__objective" style={{ display: 'none' }} />
         <div ref={playerRef} className="ll-minimap__player" />
 
         <div className="ll-minimap__legend">

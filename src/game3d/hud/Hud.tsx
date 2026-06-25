@@ -1,12 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
 import type { ObjectiveState } from '../contracts'
 import { useGameState } from '../state/GameStateContext'
-import { effectsAllowed, useQuality } from '../engine/quality'
 import AlarmMeter from './AlarmMeter'
 import Joystick3D from './Joystick3D'
 import Wayfinder from './Wayfinder'
 import '../../styles/hud3d.css'
-import '../../styles/animations.css'
 
 export interface HudProps {
   objective: ObjectiveState | null
@@ -57,20 +54,6 @@ export default function Hud({
   const showVignette = level >= 0.66
   const hint = interactHint ? parseHint(interactHint) : null
 
-  useQuality()
-  const animate = effectsAllowed()
-
-  // Pulse the objective text whenever it changes (skip the very first render).
-  const objectiveText = objective?.text ?? null
-  const [pulseKey, setPulseKey] = useState(0)
-  const prevObjective = useRef<string | null>(null)
-  useEffect(() => {
-    if (prevObjective.current !== null && objectiveText !== prevObjective.current && animate) {
-      setPulseKey((k) => k + 1)
-    }
-    prevObjective.current = objectiveText
-  }, [objectiveText, animate])
-
   return (
     <div className="hud3d">
       <div
@@ -82,24 +65,19 @@ export default function Hud({
       <div className="hud3d-top">
         <div className="hud3d-banner">
           {objective && (
-            <div className={`hud3d-objective${animate ? ' hud-anim-in' : ''}`}>
+            <div className="hud3d-objective">
               <span className="hud3d-objective-dot" />
               <span>
                 <span className="hud3d-objective-kicker">{KICKERS[objective.kind]}</span>
                 <br />
-                <span
-                  key={pulseKey}
-                  className={`hud3d-objective-text${animate ? ' hud-anim-pulse' : ''}`}
-                >
-                  {objective.text}
-                </span>
+                <span className="hud3d-objective-text">{objective.text}</span>
               </span>
             </div>
           )}
           {!hideAlarm && <AlarmMeter danger={level} />}
         </div>
 
-        <div className={`hud3d-top-right${animate ? ' hud-anim-in' : ''}`}>
+        <div className="hud3d-top-right">
           {progress && (
             <span className="hud-chip">
               <span className="hud-chip-icon" aria-hidden />

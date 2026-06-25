@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GearItem } from '../systems/gear'
-import { effectsAllowed, useQuality } from '../engine/quality'
 import '../../styles/reward-wheel.css'
-import '../../styles/animations.css'
 
 interface RewardWheelProps {
   segments: GearItem[]
@@ -13,13 +11,10 @@ interface RewardWheelProps {
   onClose: () => void
 }
 
-const SPINS = 6
+const SPINS = 5
 const SIZE = 260
 const RADIUS = 86
-// Snappier than a slow casino spin: a tight, well-eased ~2.6s drop into place.
-const DURATION_MS = 2600
-// A punchy ease that whips out of the gate and decelerates hard onto the winner.
-const SPIN_EASE = 'cubic-bezier(0.16, 0.84, 0.12, 1)'
+const DURATION_MS = 4200
 
 /**
  * A spinning prize wheel shown on a single-player room clear. Lands on a
@@ -31,18 +26,10 @@ export default function RewardWheel({ segments, winnerIndex, onResult, onClose }
   const [rotation, setRotation] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const fired = useRef(false)
-  useQuality()
-  const animate = effectsAllowed()
 
   // Kick off the spin on mount.
   useEffect(() => {
     const center = winnerIndex * seg + seg / 2
-    // Snap straight to the winner when motion is disabled (reduced-motion / low tier).
-    if (!animate) {
-      setRotation(360 - center)
-      finish()
-      return
-    }
     const final = 360 * SPINS + (360 - center)
     const raf = requestAnimationFrame(() => setRotation(final))
     const timer = setTimeout(() => finish(), DURATION_MS + 120)
@@ -72,7 +59,6 @@ export default function RewardWheel({ segments, winnerIndex, onResult, onClose }
         <h2 className="reward-wheel-title">{revealed ? 'Upgrade earned!' : 'Spinning for your upgrade…'}</h2>
 
         <div className="reward-wheel-stage" style={{ width: SIZE, height: SIZE }}>
-          {revealed && animate && <div className="reward-wheel-flash" aria-hidden />}
           <div className="reward-wheel-pointer" aria-hidden />
           <div
             className="reward-wheel"
@@ -81,7 +67,7 @@ export default function RewardWheel({ segments, winnerIndex, onResult, onClose }
               height: SIZE,
               background: gradient,
               transform: `rotate(${rotation}deg)`,
-              transition: animate ? `transform ${DURATION_MS}ms ${SPIN_EASE}` : 'none',
+              transition: `transform ${DURATION_MS}ms cubic-bezier(0.12, 0.72, 0.1, 1)`,
             }}
             onTransitionEnd={finish}
           >

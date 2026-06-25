@@ -8,7 +8,6 @@ import { useMemo, useState } from 'react'
 import type { LogicSwitchesStep, SkillId, SwitchRule } from '../../types'
 import { evaluateRule } from '../../logic/switchLogic'
 import { failedMoveFor, type LearningMode } from '../skills'
-import { effectsAllowed, useQuality } from '../engine/quality'
 import type { DeviceCallbacks } from './types'
 
 interface Props extends DeviceCallbacks {
@@ -34,8 +33,6 @@ export default function LogicGatePanel({ step, onSolved, onMistake, mode, skill 
   const [states, setStates] = useState<Record<string, boolean>>({})
   const [attempts, setAttempts] = useState(0)
   const [solved, setSolved] = useState(false)
-  useQuality()
-  const juiced = effectsAllowed()
 
   const labels = useMemo(() => {
     const map: Record<string, string> = {}
@@ -74,11 +71,7 @@ export default function LogicGatePanel({ step, onSolved, onMistake, mode, skill 
   }
 
   return (
-    <div
-      className={`p3-device${mode ? ` mode-${mode}` : ''}${juiced ? ' is-juiced' : ''}${
-        solved ? ' is-solved' : ''
-      }`}
-    >
+    <div className={`p3-device${mode ? ` mode-${mode}` : ''}`}>
       <p className="p3-prompt">{step.prompt}</p>
       {mode === 'handson' && (
         <p className="p3-affordance">Toggle the input switches to build the logic, then engage.</p>

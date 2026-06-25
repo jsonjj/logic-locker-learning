@@ -1,6 +1,4 @@
-import { effectsAllowed, useQuality } from '../engine/quality'
 import '../../styles/combat.css'
-import '../../styles/animations.css'
 
 export interface GameOverProps {
   open: boolean
@@ -8,16 +6,10 @@ export interface GameOverProps {
 }
 
 export default function GameOver({ open, onRestart }: GameOverProps) {
-  useQuality()
-  const animate = effectsAllowed()
   if (!open) return null
   return (
-    <div
-      className={`gameover-scrim${animate ? ' gameover-scrim-in' : ''}`}
-      role="alertdialog"
-      aria-label="Recaptured"
-    >
-      <div className={`gameover-card${animate ? ' gameover-pop' : ''}`} data-ui>
+    <div className="gameover-scrim" role="alertdialog" aria-label="Recaptured">
+      <div className="gameover-card" data-ui>
         <div className="gameover-kicker">Lives depleted</div>
         <h2 className="gameover-title">Recaptured</h2>
         <p className="gameover-sub">

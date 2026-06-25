@@ -1,32 +1,7 @@
-import { useEffect, useState } from 'react'
 import type { LevelResult } from '../game/lockdown/contracts'
 import StarRow from '../scoring/StarRow'
 import { formatTime } from '../scoring/score'
-import { effectsAllowed, useQuality } from '../game3d/engine/quality'
 import '../styles/scoring.css'
-
-/** Count a number up from 0 to `target` over ~900ms (or snap if disabled). */
-function useCountUp(target: number, enabled: boolean): number {
-  const [value, setValue] = useState(enabled ? 0 : target)
-  useEffect(() => {
-    if (!enabled) {
-      setValue(target)
-      return
-    }
-    let raf = 0
-    const start = performance.now()
-    const duration = 900
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setValue(Math.round(target * eased))
-      if (t < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [target, enabled])
-  return value
-}
 
 interface ResultsScreenProps {
   result: LevelResult
@@ -60,9 +35,6 @@ export default function ResultsScreen({
   onLeaderboard,
   onReview,
 }: ResultsScreenProps) {
-  useQuality()
-  const animate = effectsAllowed()
-  const displayScore = useCountUp(result.score, animate)
   return (
     <div className="lockdown ll-results">
       <div className="ll-results-card">
@@ -80,7 +52,7 @@ export default function ResultsScreen({
         </div>
 
         <div className="ll-results-score">
-          <span className="ll-results-score-value">{displayScore.toLocaleString()}</span>
+          <span className="ll-results-score-value">{result.score.toLocaleString()}</span>
           <span className="ll-results-score-label">SCORE</span>
         </div>
 

@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
 import { Floor, Wall, Door } from '../engine'
-import { RoomDressing, PulseLight, PulseMaterial } from './decor'
+import { RoomDressing } from './decor'
 import { paletteFor } from './palette'
-import { useQuality } from '../engine/quality'
 import { toTuple, type RoomDef } from '../contracts'
 
 export interface RoomShellProps {
@@ -28,11 +27,6 @@ export default function RoomShell({ def, exitOpen, onExit, highlightExit, childr
   const [w, d] = def.size
   const p = paletteFor(def.theme)
   const wallH = 4
-  const { maxLights } = useQuality()
-
-  // Two ceiling fixtures, but only spend real dynamic lights up to the tier's
-  // budget; the rest keep their (cheap) emissive panel so the room still reads lit.
-  const fixtureZ = [-d / 4, d / 4]
 
   return (
     <group>
@@ -45,28 +39,25 @@ export default function RoomShell({ def, exitOpen, onExit, highlightExit, childr
       <Wall position={[w / 2, wallH / 2, 0]} size={[0.5, wallH, d]} color={p.wall} />
 
       {/* hanging light fixtures so the room reads bright and lived-in (no solid
-          roof — keeps the overhead camera's view clear). The emissive panel
-          breathes; the real point light count is clamped to the quality budget. */}
-      {fixtureZ.map((z, i) => (
+          roof — keeps the overhead camera's view clear) */}
+      {[-d / 4, d / 4].map((z) => (
         <group key={z} position={[0, wallH - 0.3, z]}>
           <mesh>
             <boxGeometry args={[w * 0.5, 0.2, 1.1]} />
-            <PulseMaterial color="#fdf6e3" emissive="#fff3d6" base={1.3} amp={0.25} speed={2.4} phase={i * 1.3} />
+            <meshStandardMaterial color="#fdf6e3" emissive="#fff3d6" emissiveIntensity={1.3} />
           </mesh>
-          {i < maxLights && (
-            <PulseLight position={[0, -0.5, 0]} color="#ffe9c2" base={7} amp={0.7} speed={2.4} phase={i * 1.3} distance={22} />
-          )}
+          <pointLight position={[0, -0.5, 0]} intensity={7} distance={22} decay={2} color="#ffe9c2" />
         </group>
       ))}
 
       {/* baseboard accent trim along each wall (cheap polish, no colliders) */}
       <mesh position={[0, 0.15, -d / 2 + 0.3]} receiveShadow>
         <boxGeometry args={[w, 0.3, 0.12]} />
-        <PulseMaterial color={p.accent} emissive={p.glow} base={0.15} amp={0.12} speed={1.5} />
+        <meshStandardMaterial color={p.accent} emissive={p.glow} emissiveIntensity={0.15} />
       </mesh>
       <mesh position={[0, 0.15, d / 2 - 0.3]} receiveShadow>
         <boxGeometry args={[w, 0.3, 0.12]} />
-        <PulseMaterial color={p.accent} emissive={p.glow} base={0.15} amp={0.12} speed={1.5} phase={Math.PI} />
+        <meshStandardMaterial color={p.accent} emissive={p.glow} emissiveIntensity={0.15} />
       </mesh>
 
       {/* sealed entrance the player arrived through (closed -> blocks) */}

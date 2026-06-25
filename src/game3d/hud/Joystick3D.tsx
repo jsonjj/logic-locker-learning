@@ -66,10 +66,17 @@ export default function Joystick3D({ onChange }: Joystick3DProps) {
       dy = (dy / len) * max
     }
     setKnob({ x: dx, y: dy })
-    const nx = max > 0 ? dx / max : 0
+    let nx = max > 0 ? dx / max : 0
     // Screen Y grows downward; the engine wants up/forward = +. Negate so
     // pushing the stick up walks forward (matching the W key).
-    const ny = max > 0 ? -dy / max : 0
+    let ny = max > 0 ? -dy / max : 0
+    // Dead zone: ignore tiny offsets so a barely-touched / resting stick can't
+    // cause slow unintended drift.
+    const DEAD = 0.14
+    if (Math.hypot(nx, ny) < DEAD) {
+      nx = 0
+      ny = 0
+    }
     publish(nx, ny)
     onChange?.(nx, ny)
   }

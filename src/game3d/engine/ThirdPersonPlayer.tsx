@@ -5,7 +5,7 @@ import { Vector3, type Group } from 'three'
 import Character from '../character/Character'
 import { useGameState } from '../state/GameStateContext'
 import type { ThirdPersonPlayerProps } from '../contracts'
-import { getJoyInput, startJoyEventBridge } from './input'
+import { clearJoyInput, getJoyInput, startJoyEventBridge } from './input'
 import { prefersReducedMotion } from './prefersReducedMotion'
 
 /**
@@ -33,6 +33,11 @@ const CAM_YAW = Math.PI
 
 const keys: Record<string, boolean> = {}
 
+/** Wipe all latched key state (focus loss, room change, etc.). */
+function clearKeys() {
+  for (const k in keys) keys[k] = false
+}
+
 export default function ThirdPersonPlayer({ spawn, frozen, onMove }: ThirdPersonPlayerProps) {
   const body = useRef<RapierRigidBody>(null)
   const rig = useRef<Group>(null)
@@ -54,19 +59,40 @@ export default function ThirdPersonPlayer({ spawn, frozen, onMove }: ThirdPerson
   const camOffset = useRef(new Vector3())
 
   useEffect(() => {
+    // Start from a clean slate: the `keys` map is module-level and can carry a
+    // latched key across room transitions (the previous controller unmounts
+    // before its keyup arrives), which would make the new character auto-walk.
+    clearKeys()
+    clearJoyInput()
+
     const down = (e: KeyboardEvent) => {
       keys[e.key.toLowerCase()] = true
     }
     const up = (e: KeyboardEvent) => {
       keys[e.key.toLowerCase()] = false
     }
+    // When the page/window loses focus, the OS or browser may swallow the
+    // matching keyup (classic with Cmd/Alt-Tab and browser shortcuts), leaving
+    // a movement key "stuck" on. Reset everything whenever we lose focus.
+    const reset = () => {
+      clearKeys()
+      clearJoyInput()
+    }
+    const onVisibility = () => {
+      if (document.hidden) reset()
+    }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
+    window.addEventListener('blur', reset)
+    document.addEventListener('visibilitychange', onVisibility)
     const disposeJoy = startJoyEventBridge()
     return () => {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', reset)
+      document.removeEventListener('visibilitychange', onVisibility)
       disposeJoy()
+      reset()
     }
   }, [])
 

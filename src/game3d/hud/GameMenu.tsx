@@ -4,7 +4,19 @@ import { logOut } from '../../firebase/auth'
 import { R3D } from '../contracts'
 import { useInventory } from '../state/InventoryContext'
 import { LEARNING_MODES } from '../skills'
+import {
+  useQuality,
+  setQualityTier,
+  setQualityAuto,
+  type QualityTier,
+} from '../engine/quality'
 import '../../styles/hud3d.css'
+
+const QUALITY_TIERS: { id: QualityTier; label: string }[] = [
+  { id: 'low', label: 'Low' },
+  { id: 'med', label: 'Med' },
+  { id: 'high', label: 'High' },
+]
 
 export interface GameMenuProps {
   open: boolean
@@ -21,6 +33,7 @@ export interface GameMenuProps {
 export default function GameMenu({ open, onClose, onRestart }: GameMenuProps) {
   const navigate = useNavigate()
   const inv = useInventory()
+  const quality = useQuality()
 
   // Esc resumes — natural for a pause menu.
   useEffect(() => {
@@ -104,6 +117,48 @@ export default function GameMenu({ open, onClose, onRestart }: GameMenuProps) {
                 )
               })}
             </div>
+          </div>
+
+          <div className="hud-menu-divider" />
+
+          <div className="hud-style-toggle">
+            <p className="hud-style-toggle-label">
+              Graphics quality
+              <button
+                type="button"
+                className={`hud-quality-auto${quality.auto ? ' is-on' : ''}`}
+                role="switch"
+                aria-checked={quality.auto}
+                onClick={() => setQualityAuto(!quality.auto)}
+                title="Auto-adjust quality to keep the frame rate smooth"
+              >
+                <span className="hud-quality-auto-track" aria-hidden>
+                  <span className="hud-quality-auto-thumb" />
+                </span>
+                Auto
+              </button>
+            </p>
+            <div className="hud-style-seg" role="radiogroup" aria-label="Graphics quality">
+              {QUALITY_TIERS.map((t) => {
+                const active = quality.tier === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    className={`hud-style-seg-btn hud-quality-seg-btn${active ? ' is-active' : ''}`}
+                    onClick={() => setQualityTier(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="hud-quality-status">
+              {quality.auto ? 'Auto' : 'Manual'} · currently{' '}
+              <strong>{quality.tier.toUpperCase()}</strong>
+            </p>
           </div>
 
           <div className="hud-menu-divider" />

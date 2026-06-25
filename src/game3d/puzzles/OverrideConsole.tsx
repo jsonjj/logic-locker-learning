@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import type { ChoiceStep, SkillId } from '../../types'
 import { failedMoveFor, type LearningMode } from '../skills'
+import { effectsAllowed, useQuality } from '../engine/quality'
 import type { DeviceCallbacks } from './types'
 
 interface Props extends DeviceCallbacks {
@@ -21,6 +22,8 @@ export default function OverrideConsole({ step, onSolved, onMistake, mode, skill
   const [wrongIds, setWrongIds] = useState<string[]>([])
   const [attempts, setAttempts] = useState(0)
   const [solved, setSolved] = useState(false)
+  useQuality()
+  const juiced = effectsAllowed()
 
   const handlePick = (id: string) => {
     if (solved || wrongIds.includes(id)) return
@@ -47,7 +50,11 @@ export default function OverrideConsole({ step, onSolved, onMistake, mode, skill
   }
 
   return (
-    <div className={`p3-device${mode ? ` mode-${mode}` : ''}`}>
+    <div
+      className={`p3-device${mode ? ` mode-${mode}` : ''}${juiced ? ' is-juiced' : ''}${
+        solved ? ' is-solved' : ''
+      }`}
+    >
       <p className="p3-prompt">{step.prompt}</p>
       {mode === 'handson' && (
         <p className="p3-affordance">Tap a command to commit your answer.</p>

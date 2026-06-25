@@ -639,6 +639,78 @@
   line-height: 1;
 }
 
+/* ---- Graphics-quality control inside the pause menu ----
+   Reuses the learning-style segmented control, with an Auto switch in the
+   header and a live status line beneath it. */
+.hud-quality-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--hud-text-dim);
+  transition: color 0.12s ease;
+}
+
+.hud-quality-auto.is-on {
+  color: #ffd98a;
+}
+
+.hud-quality-auto-track {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--hud-line);
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.hud-quality-auto.is-on .hud-quality-auto-track {
+  background: rgba(245, 165, 36, 0.32);
+  border-color: rgba(245, 165, 36, 0.6);
+}
+
+.hud-quality-auto-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d7dce8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+
+.hud-quality-auto.is-on .hud-quality-auto-thumb {
+  transform: translateX(14px);
+  background: #ffd98a;
+}
+
+.hud-quality-seg-btn {
+  flex-direction: row;
+  justify-content: center;
+}
+
+.hud-quality-status {
+  margin: 8px 0 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--hud-text-dim);
+}
+
+.hud-quality-status strong {
+  color: #ffd98a;
+}
+
 /* ---- Prerequisite re-route offer (non-blocking) ---- */
 .reroute-offer {
   position: absolute;
@@ -720,7 +792,9 @@
   .hud3d-interact,
   .game-menu-card.hud-menu-card,
   .reroute-offer,
-  .hud-joy-knob {
+  .hud-joy-knob,
+  .hud-quality-auto-track,
+  .hud-quality-auto-thumb {
     animation: none !important;
     transition: none !important;
   }

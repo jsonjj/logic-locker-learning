@@ -6,6 +6,7 @@
 import { useMemo, useState } from 'react'
 import type { ClueSortStep, SkillId } from '../../types'
 import { failedMoveFor, type LearningMode } from '../skills'
+import { effectsAllowed, useQuality } from '../engine/quality'
 import type { DeviceCallbacks } from './types'
 
 interface Props extends DeviceCallbacks {
@@ -19,6 +20,8 @@ export default function EvidenceLocker({ step, onSolved, onMistake, mode, skill 
   const [wrongIds, setWrongIds] = useState<string[]>([])
   const [attempts, setAttempts] = useState(0)
   const [solved, setSolved] = useState(false)
+  useQuality()
+  const juiced = effectsAllowed()
 
   const allAssigned = useMemo(
     () => step.cards.every((card) => assigned[card.id] !== undefined),
@@ -57,7 +60,11 @@ export default function EvidenceLocker({ step, onSolved, onMistake, mode, skill 
   }
 
   return (
-    <div className={`p3-device${mode ? ` mode-${mode}` : ''}`}>
+    <div
+      className={`p3-device${mode ? ` mode-${mode}` : ''}${juiced ? ' is-juiced' : ''}${
+        solved ? ' is-solved' : ''
+      }`}
+    >
       <p className="p3-prompt">{step.prompt}</p>
       {mode === 'handson' && (
         <p className="p3-affordance">Tap a drawer under each item to file it, then seal the locker.</p>

@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { useGameState } from '../game3d/state/GameStateContext'
 import { pushHit } from './net'
 import { playBlast } from '../audio/sound'
+import { useFxPool, WeaponFxLayer } from '../game3d/combat/effects/WeaponFx'
+import { triggerShake } from '../game3d/combat/effects/shake'
+import { kickFov } from '../game3d/combat/effects/cameraPunch'
 import type { EnemiesHandle } from './SharedEnemies'
 
 /** Weapon profile the arena derives from the player's equipped gear. */
@@ -23,13 +27,6 @@ interface MpWeaponProps {
   weapon: MpWeaponProfile
 }
 
-interface Tracer {
-  x: number
-  z: number
-  heading: number
-  len: number
-}
-
 /**
  * The multiplayer sidearm — available from the first second (guns-fast). Its
  * stats come from the player's single-player loadout, so unlocking better gear
@@ -39,7 +36,8 @@ interface Tracer {
 export default function MpWeapon({ code, uid, isHost, playing, handle, weapon }: MpWeaponProps) {
   const gs = useGameState()
   const cooldown = useRef(0)
-  const [tracer, setTracer] = useState<Tracer | null>(null)
+  const fx = useFxPool()
+  const spawn = fx.spawn
 
   // Keep the latest weapon profile for the (stable) event handler.
   const wRef = useRef(weapon)
@@ -59,17 +57,11 @@ export default function MpWeapon({ code, uid, isHost, playing, handle, weapon }:
       const heading = gs.playerHeading.current
       const target = h.nearest(px, pz, heading, w.range)
 
-      let len = w.range
-      let aim = heading
       let ix = px + Math.sin(heading) * w.range
       let iz = pz + Math.cos(heading) * w.range
       if (target) {
         ix = target.x
         iz = target.z
-        const dx = ix - px
-        const dz = iz - pz
-        len = Math.hypot(dx, dz)
-        aim = Math.atan2(dx, dz)
       }
 
       const deal = (id: string) => {
@@ -85,7 +77,27 @@ export default function MpWeapon({ code, uid, isHost, playing, handle, weapon }:
       }
 
       playBlast(w.aoe ? 'boom' : 'laser')
-      setTracer({ x: px, z: pz, heading: aim, len })
+
+      // --- Juice -------------------------------------------------------------
+      // Stronger guns read as visibly thicker tracers.
+      const thick = 0.06 + Math.min(0.24, (w.damage - 1) * 0.05)
+      const muzzle: [number, number, number] = [px, 1.1, pz]
+      const impact: [number, number, number] = [ix, 1.1, iz]
+      spawn({ kind: 'muzzle', pos: muzzle, color: w.color, ttl: w.aoe ? 110 : 90 })
+      spawn({ kind: 'tracer', pos: muzzle, to: impact, color: w.color, ttl: 120, thickness: thick })
+      if (w.aoe) {
+        spawn({ kind: 'shockwave', pos: impact, color: w.color, radius: w.aoe, ttl: 460 })
+        spawn({ kind: 'impact', pos: impact, color: '#ffffff', ttl: 200 })
+        triggerShake(0.55)
+        kickFov(1.4)
+      } else if (target) {
+        spawn({ kind: 'impact', pos: impact, color: w.color, ttl: 170 })
+        triggerShake(0.18)
+        kickFov(1)
+      } else {
+        triggerShake(0.1)
+        kickFov(0.6)
+      }
     }
 
     function onKey(e: KeyboardEvent) {
@@ -100,29 +112,11 @@ export default function MpWeapon({ code, uid, isHost, playing, handle, weapon }:
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('ll-fire', onFireEvent as EventListener)
     }
-  }, [code, uid, isHost, playing, handle, gs])
+  }, [code, uid, isHost, playing, handle, gs, spawn])
 
-  useEffect(() => {
-    if (!tracer) return
-    const t = setTimeout(() => setTracer(null), 110)
-    return () => clearTimeout(t)
-  }, [tracer])
+  useFrame(() => {
+    fx.prune()
+  })
 
-  if (!tracer) return null
-  // Stronger guns fire visibly thicker, brighter beams so power reads at a glance.
-  const thick = 0.05 + Math.min(0.22, (weapon.damage - 1) * 0.05)
-  return (
-    <group position={[tracer.x, 1.1, tracer.z]} rotation={[0, tracer.heading, 0]}>
-      <mesh position={[0, 0, tracer.len / 2]}>
-        <boxGeometry args={[thick, thick, tracer.len]} />
-        <meshStandardMaterial color={weapon.color} emissive={weapon.color} emissiveIntensity={2.6} />
-      </mesh>
-      {weapon.aoe ? (
-        <mesh position={[0, 0, tracer.len]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[weapon.aoe * 0.5, weapon.aoe, 28]} />
-          <meshStandardMaterial color={weapon.color} emissive={weapon.color} emissiveIntensity={2} transparent opacity={0.5} />
-        </mesh>
-      ) : null}
-    </group>
-  )
+  return <WeaponFxLayer pool={fx.items} />
 }

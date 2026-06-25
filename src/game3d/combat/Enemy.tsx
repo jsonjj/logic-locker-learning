@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import { Billboard } from '@react-three/drei'
-import type { Group, Mesh } from 'three'
+import type { Group, Mesh, MeshBasicMaterial, MeshStandardMaterial } from 'three'
 import { useGameState } from '../state/GameStateContext'
 import { useCombat, type EnemyHandle } from './CombatContext'
+import { effectsAllowed } from '../engine/quality'
+import { ADDITIVE, clamp01, FLASH_GEO } from './effects/shared'
 import type { Vec3 } from '../contracts'
 
 export type EnemyKind = 'melee' | 'ranged'
@@ -29,6 +31,11 @@ const RANGED_SIGHT = 24
 const FIRE_INTERVAL = 1500
 const PROJ_SPEED = 9
 const PROJ_RANGE = 28
+
+// Juice timings (decorative only — gameplay "death" happens the instant HP hits
+// 0; this just delays the visual removal so guards pop instead of blinking out).
+const SPAWN_MS = 280
+const DEATH_MS = 320
 
 interface Projectile {
   pid: number
@@ -99,12 +106,19 @@ export default function Enemy({
 }: EnemyProps) {
   const body = useRef<RapierRigidBody>(null)
   const rig = useRef<Group>(null)
+  const bodyMat = useRef<MeshStandardMaterial>(null)
+  const eyeMat = useRef<MeshStandardMaterial>(null)
+  const burst = useRef<Group>(null)
+  const burstMat = useRef<MeshBasicMaterial>(null)
   const hpRef = useRef(hp)
   const alive = useRef(true)
   const flash = useRef(0)
   const lastShot = useRef(0)
   const boltId = useRef(0)
-  const [dead, setDead] = useState(false)
+  const spawnAt = useRef(performance.now())
+  const dyingAt = useRef(0)
+  const deathTimer = useRef<number | null>(null)
+  const [dying, setDying] = useState(false)
   const [hpView, setHpView] = useState(hp)
   const [bolts, setBolts] = useState<Projectile[]>([])
 
@@ -125,9 +139,17 @@ export default function Enemy({
         setHpView(hpRef.current)
         flash.current = 1
         if (hpRef.current <= 0) {
+          // Gameplay death is instant: stop counting as a live target NOW.
           alive.current = false
-          setDead(true)
-          onDeath?.(id)
+          dyingAt.current = performance.now()
+          setDying(true)
+          // Decorative death pop delays the actual removal; on low/reduced we
+          // skip the animation and remove immediately so it no-ops cleanly.
+          if (effectsAllowed()) {
+            deathTimer.current = window.setTimeout(() => onDeath?.(id), DEATH_MS)
+          } else {
+            onDeath?.(id)
+          }
           return true
         }
         return false
@@ -135,15 +157,57 @@ export default function Enemy({
       isAlive: () => alive.current,
     }
     combat.register(handle)
-    return () => combat.unregister(id)
+    return () => {
+      combat.unregister(id)
+      if (deathTimer.current !== null) window.clearTimeout(deathTimer.current)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   useFrame((_, delta) => {
     const rb = body.current
-    if (!rb || dead) return
+    if (!rb) return
     const dt = Math.min(delta, 1 / 30)
     if (flash.current > 0) flash.current = Math.max(0, flash.current - dt * 3)
+
+    // --- Visual juice: spawn pop, idle bob, hit flash, death pop -------------
+    const fx = effectsAllowed()
+    const now = performance.now()
+    let scale = 1
+    let bob = 0
+    if (fx) {
+      // Spawn-in pop with a slight overshoot (easeOutBack: 0 -> ~1.1 -> 1).
+      const se = clamp01((now - spawnAt.current) / SPAWN_MS)
+      if (se < 1) {
+        const c1 = 1.70158
+        const c3 = c1 + 1
+        scale = 1 + c3 * Math.pow(se - 1, 3) + c1 * Math.pow(se - 1, 2)
+      }
+      // Gentle idle bob while alive.
+      if (alive.current) bob = Math.sin(now * 0.004 + id) * 0.05
+    }
+    if (dying) {
+      const de = clamp01((now - dyingAt.current) / DEATH_MS)
+      // Quick puff-up, then dissolve down to nothing.
+      const dscale = de < 0.25 ? 1 + (de / 0.25) * 0.35 : 1.35 * (1 - (de - 0.25) / 0.75)
+      scale *= Math.max(0, dscale)
+      bob += de * 0.5
+      if (burst.current) burst.current.scale.setScalar(0.3 + de * 1.7)
+      if (burstMat.current) burstMat.current.opacity = (1 - de) * 0.8
+    }
+    if (rig.current) {
+      rig.current.scale.setScalar(scale)
+      rig.current.position.y = -0.9 + bob
+    }
+    if (bodyMat.current) bodyMat.current.emissiveIntensity = flash.current * 1.6
+    if (eyeMat.current) eyeMat.current.emissiveIntensity = 2.4 + flash.current * 3
+
+    if (dying) {
+      // Freeze in place during the death animation.
+      const vd = rb.linvel()
+      rb.setLinvel({ x: 0, y: vd.y, z: 0 }, true)
+      return
+    }
 
     const p = gs.playerPos.current
     const t = rb.translation()
@@ -186,10 +250,8 @@ export default function Enemy({
     }
   })
 
-  if (dead) return null
-
   const bodyColor = kind === 'ranged' ? '#2a1f10' : '#3a1620'
-  const glow = flash.current > 0.05 ? '#ffffff' : kind === 'ranged' ? '#ff9a3d' : '#ff3b2f'
+  const glow = kind === 'ranged' ? '#ff9a3d' : '#ff3b2f'
   const frac = Math.max(0, Math.min(1, hpView / hp))
   const barW = 1.1
 
@@ -208,7 +270,14 @@ export default function Enemy({
         <group ref={rig} position={[0, -0.9, 0]}>
           <mesh position={[0, 1, 0]} castShadow>
             <capsuleGeometry args={[0.42, 0.9, 6, 12]} />
-            <meshStandardMaterial color={bodyColor} metalness={0.2} roughness={0.7} />
+            <meshStandardMaterial
+              ref={bodyMat}
+              color={bodyColor}
+              emissive="#ffffff"
+              emissiveIntensity={0}
+              metalness={0.2}
+              roughness={0.7}
+            />
           </mesh>
           <mesh position={[0, 1.85, 0]} castShadow>
             <sphereGeometry args={[0.32, 16, 16]} />
@@ -216,7 +285,7 @@ export default function Enemy({
           </mesh>
           <mesh position={[0, 1.88, 0.27]}>
             <boxGeometry args={[0.34, 0.1, 0.08]} />
-            <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={2.4} />
+            <meshStandardMaterial ref={eyeMat} color={glow} emissive={glow} emissiveIntensity={2.4} />
           </mesh>
           {kind === 'ranged' && (
             <mesh position={[0.3, 1.05, 0.25]} rotation={[Math.PI / 2, 0, 0]}>
@@ -237,6 +306,22 @@ export default function Enemy({
             </mesh>
           </Billboard>
         </group>
+
+        {/* Death burst — expands + fades as the guard pops (not scaled by rig). */}
+        {dying && (
+          <group ref={burst} position={[0, 0.1, 0]}>
+            <mesh geometry={FLASH_GEO}>
+              <meshBasicMaterial
+                ref={burstMat}
+                color={glow}
+                transparent
+                opacity={0.8}
+                blending={ADDITIVE}
+                depthWrite={false}
+              />
+            </mesh>
+          </group>
+        )}
       </RigidBody>
 
       {bolts.map((b) => (

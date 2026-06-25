@@ -4,6 +4,7 @@ import { getSector } from '../../data/sectors'
 import { getLesson } from '../../data/lessons'
 import type { Choice, Step, StepFeedback } from '../../types'
 import type { SectorId } from '../contracts'
+import { effectsAllowed, useQuality } from '../engine/quality'
 import '../../styles/learn.css'
 
 export interface LearnPanelProps {
@@ -73,6 +74,10 @@ export default function LearnPanel({ sectorId, onBegin }: LearnPanelProps) {
   const [preChoice, setPreChoice] = useState<string | null>(null)
   const [reChoice, setReChoice] = useState<string | null>(null)
 
+  // Stagger-reveal each beat's contents; snapped under reduced-motion / low tier.
+  useQuality()
+  const animClass = effectsAllowed() ? ' learn-anim' : ''
+
   const topic = topics[i]
   const last = i >= topics.length - 1
 
@@ -81,7 +86,7 @@ export default function LearnPanel({ sectorId, onBegin }: LearnPanelProps) {
     const answered = preChoice !== null
     return (
       <div className="learn-overlay">
-        <div className="learn-card">
+        <div className={`learn-card${animClass}`} key="pre">
           <div className="learn-kicker">Mission · {sector?.name ?? 'Block'}</div>
           <p className="learn-teacher">Before the briefing — take your best shot. Guessing wrong here costs nothing.</p>
           <h2 className="learn-q-prompt">{question.prompt}</h2>
@@ -128,7 +133,7 @@ export default function LearnPanel({ sectorId, onBegin }: LearnPanelProps) {
       : fb?.firstWrong ?? 'Not quite — revisit the idea and try the real lock.'
     return (
       <div className="learn-overlay">
-        <div className="learn-card">
+        <div className={`learn-card${animClass}`} key="reask">
           <div className="learn-kicker">Now you know · {sector?.name ?? 'Block'}</div>
           <p className="learn-teacher">Same question — does it click now?</p>
           <h2 className="learn-q-prompt">{question.prompt}</h2>
@@ -177,7 +182,7 @@ export default function LearnPanel({ sectorId, onBegin }: LearnPanelProps) {
 
   return (
     <div className="learn-overlay">
-      <div className="learn-card">
+      <div className={`learn-card${animClass}`} key={`briefing-${i}`}>
         <div className="learn-kicker">Briefing · {sector?.name ?? 'Block'}</div>
         {teacher && <p className="learn-teacher">“{teacher}”</p>}
 

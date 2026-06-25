@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom'
+import { effectsAllowed, useQuality } from './game3d/engine/quality'
+import './styles/animations.css'
 import ProtectedRoute from './components/ProtectedRoute'
 import GlobalLogout from './components/GlobalLogout'
 import GlobalHome from './components/GlobalHome'
@@ -72,13 +74,21 @@ function ClassroomAuditRoute() {
 }
 
 export default function App() {
+  const location = useLocation()
+  useQuality()
+  // Lightweight fade/slide between pages; snapped under reduced-motion / low tier.
+  const transition = effectsAllowed()
   return (
     <RunProvider>
       <InventoryProvider>
         <GlobalLogout />
         <GlobalHome />
         <SoundControl />
-        <Routes>
+        <div
+          key={location.pathname}
+          className={transition ? 'route-anim' : undefined}
+        >
+        <Routes location={location}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route
@@ -181,6 +191,7 @@ export default function App() {
         />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </div>
       </InventoryProvider>
     </RunProvider>
   )

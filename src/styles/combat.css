@@ -122,8 +122,33 @@
   gap: 2px;
 }
 
+.combat-fire {
+  transition: transform 0.08s ease, box-shadow 0.12s ease;
+}
+
+.combat-fire:hover {
+  box-shadow: 0 12px 30px rgba(255, 64, 48, 0.6), 0 0 0 3px rgba(255, 138, 61, 0.25);
+}
+
 .combat-fire:active {
-  transform: scale(0.93);
+  transform: scale(0.9);
+  box-shadow: 0 4px 12px rgba(255, 64, 48, 0.5), 0 0 22px rgba(255, 138, 61, 0.55);
+}
+
+/* Respect reduced-motion: drop the punchy transitions + timer pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .combat-fire {
+    transition: none;
+  }
+  .combat-fire:active {
+    transform: none;
+  }
+  .combat-timer.is-low {
+    animation: none;
+  }
+  .combat-toast {
+    animation: none;
+  }
 }
 
 .combat-fire-key {

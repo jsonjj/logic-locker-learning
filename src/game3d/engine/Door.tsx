@@ -5,6 +5,7 @@ import type { Mesh, MeshStandardMaterial } from 'three'
 import type { DoorProps } from '../contracts'
 import { useGameState } from '../state/GameStateContext'
 import { prefersReducedMotion } from './prefersReducedMotion'
+import { effectsAllowed } from './quality'
 
 /**
  * A sliding blast door (Agent 1).
@@ -41,16 +42,24 @@ export default function Door({
   const progress = useRef(0) // 0 closed .. 1 open
   const entered = useRef(false)
   const glow = useRef<MeshStandardMaterial>(null)
+  const slabMat = useRef<MeshStandardMaterial>(null)
   const marker = useRef<Mesh>(null)
+  const prevOpen = useRef(open)
+  const flash = useRef(0) // brief 1..0 burst when the door opens
   const gs = useGameState()
 
   const baseY = position[1] + DOOR_H / 2
 
   useFrame((state, delta) => {
     const reduce = prefersReducedMotion()
+    // Decorative motion (glow pulse, open flash, marker spin) is gated here so it
+    // is disabled on the 'low' tier and under reduced-motion; the slab slide and
+    // collider behavior below always run so the door stays functionally correct.
+    const fx = effectsAllowed()
     const dt = Math.min(delta, 1 / 30)
+    const t = state.clock.elapsedTime
 
-    // Animate the slab toward open/closed.
+    // Animate the slab toward open/closed (slide). Snap only under reduced motion.
     const targetP = open ? 1 : 0
     if (reduce) progress.current = targetP
     else progress.current += (targetP - progress.current) * (1 - Math.exp(-7 * dt))
@@ -63,17 +72,28 @@ export default function Door({
       })
     }
 
-    // Objective glow pulse + bobbing marker.
-    if (highlight) {
-      const pulse = reduce ? 0.7 : 0.55 + Math.sin(state.clock.elapsedTime * 3) * 0.35
-      if (glow.current) glow.current.emissiveIntensity = pulse
-      if (marker.current) {
-        marker.current.position.y =
-          DOOR_H + 0.9 + (reduce ? 0 : Math.sin(state.clock.elapsedTime * 2.5) * 0.18)
-        if (!reduce) marker.current.rotation.y = state.clock.elapsedTime * 1.6
-      }
-    } else if (glow.current) {
-      glow.current.emissiveIntensity = 0
+    // Trigger a brief emissive flash on the rising edge of `open`.
+    if (open && !prevOpen.current && fx) flash.current = 1
+    prevOpen.current = open
+    if (flash.current > 0) flash.current = Math.max(0, flash.current - dt * 2.4)
+
+    // Lintel glow: pulses while this door is the objective, plus the open flash.
+    if (glow.current) {
+      let intensity = 0
+      if (highlight) intensity = fx ? 0.55 + Math.sin(t * 4) * 0.45 : 0.7
+      intensity += flash.current * 1.8
+      glow.current.emissiveIntensity = intensity
+    }
+
+    // Slab face brightens on the open flash (and rests lit when highlighted).
+    if (slabMat.current) {
+      slabMat.current.emissiveIntensity = (highlight ? 0.5 : 0) + flash.current * 0.7
+    }
+
+    // Bobbing / spinning objective marker.
+    if (highlight && marker.current) {
+      marker.current.position.y = DOOR_H + 0.9 + (fx ? Math.sin(t * 2.5) * 0.18 : 0)
+      if (fx) marker.current.rotation.y = t * 1.6
     }
 
     // onEnter trigger (distance to opening, on the ground plane).
@@ -150,8 +170,9 @@ export default function Door({
         <mesh castShadow receiveShadow>
           <boxGeometry args={[DOOR_W, DOOR_H, DOOR_D]} />
           <meshStandardMaterial
+            ref={slabMat}
             color={highlight ? '#6b5526' : '#4a5663'}
-            emissive={highlight ? '#3a2a08' : '#000000'}
+            emissive={highlight ? '#ffb43a' : '#ffce7a'}
             emissiveIntensity={highlight ? 0.5 : 0}
             metalness={0.45}
             roughness={0.55}

@@ -1,21 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Line } from '@react-three/drei'
 import { useGameState } from '../state/GameStateContext'
 import { useInventory } from '../state/InventoryContext'
 import { useCombat } from './CombatContext'
 import { playBlast } from '../../audio/sound'
+import { useFxPool, WeaponFxLayer } from './effects/WeaponFx'
+import { triggerShake } from './effects/shake'
+import { kickFov } from './effects/cameraPunch'
 import type { GearItem } from '../systems/gear'
-
-interface Fx {
-  kind: 'ranged' | 'melee' | 'aoe'
-  from: [number, number, number]
-  to: [number, number, number]
-  color: string
-  until: number
-  /** Blast radius (m), only for kind === 'aoe'. */
-  radius?: number
-}
 
 /** The fire dispatch: any DOM control can `window.dispatchEvent(new Event('ll-fire'))`. */
 const FIRE_EVENT = 'll-fire'
@@ -33,11 +25,12 @@ export default function WeaponController({ disabled = false, weaponOverride }: W
   const weapon = weaponOverride ?? equippedWeapon
   const combat = useCombat()
   const lastFire = useRef(0)
-  const [fx, setFx] = useState<Fx | null>(null)
+  const fx = useFxPool()
 
   // Latest values for the event handlers (avoid stale closures).
   const state = useRef({ disabled, weapon })
   state.current = { disabled, weapon }
+  const spawn = fx.spawn
 
   useEffect(() => {
     function tryFire() {
@@ -74,20 +67,40 @@ export default function WeaponController({ disabled = false, weaponOverride }: W
           iz = from.z + Math.cos(heading) * reach
         }
         combat.damageInRadius(ix, iz, w.aoe, w.damage ?? 1)
-        setFx({ kind: 'aoe', from: muzzle, to: [ix, from.y + 0.2, iz], color: w.color, radius: w.aoe, until: now + 260 })
+        const impact: [number, number, number] = [ix, from.y + 0.2, iz]
+        spawn({ kind: 'muzzle', pos: muzzle, color: w.color, ttl: 110 })
+        spawn({ kind: 'tracer', pos: muzzle, to: impact, color: w.color, ttl: 150, thickness: 0.2 })
+        spawn({ kind: 'shockwave', pos: impact, color: w.color, radius: w.aoe, ttl: 460 })
+        spawn({ kind: 'impact', pos: impact, color: '#ffffff', ttl: 200 })
+        triggerShake(0.6)
+        kickFov(1.4)
         return
       }
 
       if (target) {
         const tp = target.getPos()
-        target.damage(w.damage ?? 1)
-        setFx({ kind: ranged ? 'ranged' : 'melee', from: muzzle, to: [tp.x, tp.y + 0.2, tp.z], color: w.color, until: now + 120 })
+        const killed = target.damage(w.damage ?? 1)
+        const impact: [number, number, number] = [tp.x, tp.y + 0.2, tp.z]
+        spawn({ kind: 'muzzle', pos: muzzle, color: w.color, ttl: 90 })
+        if (ranged) {
+          spawn({ kind: 'tracer', pos: muzzle, to: impact, color: w.color, ttl: 130 })
+        } else {
+          spawn({ kind: 'melee', pos: impact, color: w.color, ttl: 150 })
+        }
+        spawn({ kind: 'impact', pos: impact, color: killed ? '#ffffff' : w.color, ttl: 180 })
+        triggerShake(ranged ? 0.18 : 0.26)
+        kickFov(1)
       } else {
         // Whiff: show the shot/swing going forward.
         const reach = ranged ? Math.min(w.range ?? 10, 12) : w.range ?? 2.4
         const tx = from.x + Math.sin(heading) * reach
         const tz = from.z + Math.cos(heading) * reach
-        setFx({ kind: ranged ? 'ranged' : 'melee', from: muzzle, to: [tx, from.y + 0.2, tz], color: w.color, until: now + 100 })
+        const end: [number, number, number] = [tx, from.y + 0.2, tz]
+        spawn({ kind: 'muzzle', pos: muzzle, color: w.color, ttl: 90 })
+        if (ranged) spawn({ kind: 'tracer', pos: muzzle, to: end, color: w.color, ttl: 120 })
+        else spawn({ kind: 'melee', pos: end, color: w.color, ttl: 140 })
+        triggerShake(0.12)
+        kickFov(0.6)
       }
     }
 
@@ -118,44 +131,8 @@ export default function WeaponController({ disabled = false, weaponOverride }: W
   }, [])
 
   useFrame(() => {
-    if (fx && performance.now() > fx.until) setFx(null)
+    fx.prune()
   })
 
-  if (!fx) return null
-
-  if (fx.kind === 'aoe') {
-    const r = fx.radius ?? 4
-    return (
-      <group position={[fx.to[0], 0.15, fx.to[2]]}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[r * 0.55, r, 40]} />
-          <meshStandardMaterial color={fx.color} emissive={fx.color} emissiveIntensity={2.4} transparent opacity={0.6} />
-        </mesh>
-        <mesh position={[0, 0.6, 0]}>
-          <sphereGeometry args={[r * 0.45, 16, 16]} />
-          <meshStandardMaterial color={fx.color} emissive={fx.color} emissiveIntensity={1.8} transparent opacity={0.28} />
-        </mesh>
-      </group>
-    )
-  }
-
-  if (fx.kind === 'ranged') {
-    return (
-      <group>
-        <Line points={[fx.from, fx.to]} color={fx.color} lineWidth={3} />
-        <mesh position={fx.to}>
-          <sphereGeometry args={[0.25, 10, 10]} />
-          <meshStandardMaterial color={fx.color} emissive={fx.color} emissiveIntensity={2.5} />
-        </mesh>
-      </group>
-    )
-  }
-
-  // Melee swing: a quick emissive arc at the strike point.
-  return (
-    <mesh position={fx.to} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[0.4, 0.9, 16, 1, 0, Math.PI]} />
-      <meshStandardMaterial color={fx.color} emissive={fx.color} emissiveIntensity={2} transparent opacity={0.8} />
-    </mesh>
-  )
+  return <WeaponFxLayer pool={fx.items} />
 }

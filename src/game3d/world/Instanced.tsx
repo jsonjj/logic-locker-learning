@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
-import { Object3D, type InstancedMesh } from 'three'
+import { useFrame } from '@react-three/fiber'
+import { Object3D, type InstancedMesh, type MeshStandardMaterial } from 'three'
+import { effectsAllowed } from '../engine/quality'
 
 /**
  * [Agent 2] A single instanced box mesh used for all repeating low-poly detail
@@ -18,6 +20,26 @@ export interface BoxInstance {
   rotationY?: number
 }
 
+/**
+ * Optional shared-material emissive animation. Because every instance in a family
+ * shares ONE material, this drives them all from a single per-frame scalar write
+ * (no allocations, no per-instance matrix work). Disabled automatically whenever
+ * `effectsAllowed()` is false (low tier / reduced motion) — the family then rests
+ * at `base`, so 'low' decorations are static.
+ */
+export interface EmissivePulse {
+  /** Resting emissive intensity (also the value used when effects are off). */
+  base: number
+  /** Peak deviation from base. Defaults to 0.3. */
+  amp?: number
+  /** Breathing speed (rad/s). Defaults to 2. */
+  speed?: number
+  /** Phase offset so sibling families don't pulse in lockstep. Defaults to 0. */
+  phase?: number
+  /** Use an irregular flicker (emergency-light feel) instead of a smooth sine. */
+  flicker?: boolean
+}
+
 export interface InstancedBoxesProps {
   instances: BoxInstance[]
   color?: string
@@ -27,6 +49,8 @@ export interface InstancedBoxesProps {
   roughness?: number
   castShadow?: boolean
   receiveShadow?: boolean
+  /** When set, breathes/flickers the shared emissive (gated by effectsAllowed). */
+  pulse?: EmissivePulse
 }
 
 const UNIT: [number, number, number] = [1, 1, 1]
@@ -43,9 +67,32 @@ export function InstancedBoxes({
   roughness = 0.85,
   castShadow = true,
   receiveShadow = true,
+  pulse,
 }: InstancedBoxesProps) {
   const ref = useRef<InstancedMesh>(null)
   const count = instances.length
+
+  // Animate the single shared material; one scalar write per frame for the whole
+  // family. Hook is always registered; it no-ops cheaply when there's no pulse.
+  useFrame((state) => {
+    if (!pulse) return
+    const mesh = ref.current
+    if (!mesh) return
+    const mat = mesh.material as MeshStandardMaterial
+    if (!effectsAllowed()) {
+      mat.emissiveIntensity = pulse.base
+      return
+    }
+    const amp = pulse.amp ?? 0.3
+    const t = state.clock.elapsedTime
+    const phase = pulse.phase ?? 0
+    if (pulse.flicker) {
+      const n = Math.sin(t * 37 + phase) * 0.6 + Math.sin(t * 19.3 + phase) * 0.4
+      mat.emissiveIntensity = Math.max(0, pulse.base + amp * n)
+    } else {
+      mat.emissiveIntensity = pulse.base + Math.sin(t * (pulse.speed ?? 2) + phase) * amp
+    }
+  })
 
   useLayoutEffect(() => {
     const mesh = ref.current
@@ -78,7 +125,7 @@ export function InstancedBoxes({
       <meshStandardMaterial
         color={color}
         emissive={emissive}
-        emissiveIntensity={emissiveIntensity}
+        emissiveIntensity={pulse ? pulse.base : emissiveIntensity}
         metalness={metalness}
         roughness={roughness}
       />

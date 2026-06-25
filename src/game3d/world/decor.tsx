@@ -1,5 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import type { MeshStandardMaterial, PointLight } from 'three'
 import { Wall, Prop } from '../engine'
+import { effectsAllowed } from '../engine/quality'
 import { InstancedBoxes, type BoxInstance } from './Instanced'
 import { paletteFor, type ThemePalette } from './palette'
 import type { RoomDef } from '../contracts'
@@ -18,6 +21,112 @@ interface ThemeDressingProps {
   p: ThemePalette
 }
 
+/**
+ * A drop-in replacement for <meshStandardMaterial> that gently breathes (or
+ * flickers) its emissive intensity. Animates a single material ref with one
+ * scalar write per frame — allocation-free and bounded. Rests at `base` whenever
+ * `effectsAllowed()` is false, so it is fully static on the 'low' tier and under
+ * reduced motion. Reused by RoomShell / HubWorld for accent set pieces.
+ */
+export interface PulseMaterialProps {
+  color: string
+  emissive: string
+  /** Resting emissive intensity. */
+  base: number
+  amp?: number
+  speed?: number
+  phase?: number
+  flicker?: boolean
+  metalness?: number
+  roughness?: number
+  toneMapped?: boolean
+  transparent?: boolean
+  opacity?: number
+}
+
+export function PulseMaterial({
+  color,
+  emissive,
+  base,
+  amp = 0.3,
+  speed = 2,
+  phase = 0,
+  flicker = false,
+  ...rest
+}: PulseMaterialProps) {
+  const ref = useRef<MeshStandardMaterial>(null)
+  useFrame((state) => {
+    const m = ref.current
+    if (!m) return
+    if (!effectsAllowed()) {
+      m.emissiveIntensity = base
+      return
+    }
+    const t = state.clock.elapsedTime
+    if (flicker) {
+      const n = Math.sin(t * 37 + phase) * 0.6 + Math.sin(t * 19.3 + phase) * 0.4
+      m.emissiveIntensity = Math.max(0, base + amp * n)
+    } else {
+      m.emissiveIntensity = base + Math.sin(t * speed + phase) * amp
+    }
+  })
+  return (
+    <meshStandardMaterial
+      ref={ref}
+      color={color}
+      emissive={emissive}
+      emissiveIntensity={base}
+      {...rest}
+    />
+  )
+}
+
+/**
+ * A <pointLight> whose intensity gently breathes (or flickers) around `base`.
+ * Single scalar write per frame; rests at `base` when `effectsAllowed()` is
+ * false. Callers gate the COUNT of these against `useQuality().maxLights` so the
+ * dynamic-light budget is respected on weaker tiers.
+ */
+export interface PulseLightProps {
+  position: [number, number, number]
+  color: string
+  base: number
+  amp?: number
+  speed?: number
+  phase?: number
+  flicker?: boolean
+  distance?: number
+}
+
+export function PulseLight({
+  position,
+  color,
+  base,
+  amp = 1,
+  speed = 2,
+  phase = 0,
+  flicker = false,
+  distance = 24,
+}: PulseLightProps) {
+  const ref = useRef<PointLight>(null)
+  useFrame((state) => {
+    const l = ref.current
+    if (!l) return
+    if (!effectsAllowed()) {
+      l.intensity = base
+      return
+    }
+    const t = state.clock.elapsedTime
+    if (flicker) {
+      const n = Math.sin(t * 41 + phase) * 0.6 + Math.sin(t * 23.7 + phase) * 0.4
+      l.intensity = Math.max(0, base + amp * n)
+    } else {
+      l.intensity = base + Math.sin(t * speed + phase) * amp
+    }
+  })
+  return <pointLight ref={ref} position={position} intensity={base} distance={distance} decay={2} color={color} />
+}
+
 // ---------------------------------------------------------------------------
 // Hub yard
 // ---------------------------------------------------------------------------
@@ -34,10 +143,10 @@ function GuardTower({ x, z, p }: { x: number; z: number; p: ThemePalette }) {
         <coneGeometry args={[3.4, 1.6, 4]} />
         <meshStandardMaterial color="#1c2128" roughness={0.9} />
       </mesh>
-      {/* searchlight */}
+      {/* searchlight — slow breathing beam */}
       <mesh position={[x, 8.8, z]}>
         <sphereGeometry args={[0.5, 12, 12]} />
-        <meshStandardMaterial color={p.glow} emissive={p.glow} emissiveIntensity={1.1} />
+        <PulseMaterial color={p.glow} emissive={p.glow} base={1.1} amp={0.5} speed={1.6} phase={x + z} />
       </mesh>
     </group>
   )
@@ -80,14 +189,20 @@ export function YardDressing({ size }: { size: [number, number] }) {
       <GuardTower x={w / 2 - 4} z={d / 2 - 4} p={p} />
 
       <InstancedBoxes instances={floods} color="#3a4452" metalness={0.4} roughness={0.6} />
-      <InstancedBoxes instances={lamps} color="#20242b" emissive={p.glow} emissiveIntensity={0.9} castShadow={false} />
+      <InstancedBoxes
+        instances={lamps}
+        color="#20242b"
+        emissive={p.glow}
+        castShadow={false}
+        pulse={{ base: 0.9, amp: 0.35, flicker: true }}
+      />
       <InstancedBoxes instances={wire} color="#5a6473" castShadow={false} receiveShadow={false} />
 
       {/* central muster pad */}
       <Wall position={[0, 0.15, 0]} size={[10, 0.3, 10]} color="#313842" />
       <mesh position={[0, 0.33, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.6, 4.2, 28]} />
-        <meshStandardMaterial color={p.glow} emissive={p.glow} emissiveIntensity={0.5} />
+        <PulseMaterial color={p.glow} emissive={p.glow} base={0.5} amp={0.3} speed={2.2} />
       </mesh>
 
       {/* supply crates */}
@@ -139,8 +254,8 @@ function CellblockDressing({ w, d, p }: ThemeDressingProps) {
         instances={lights}
         color="#20242b"
         emissive={p.glow}
-        emissiveIntensity={0.9}
         castShadow={false}
+        pulse={{ base: 0.85, amp: 0.4, flicker: true }}
       />
       {bunks.map((b, i) => (
         <Wall key={`bunk-${i}`} position={[b.x, 0.5, b.z]} size={[2.4, 0.5, 1.8]} color={p.wall} />
@@ -188,9 +303,9 @@ function VaultDressing({ w, d, p }: ThemeDressingProps) {
         instances={drawers}
         color={p.accent}
         emissive={p.glow}
-        emissiveIntensity={0.25}
         metalness={0.5}
         roughness={0.5}
+        pulse={{ base: 0.25, amp: 0.18, speed: 1.3 }}
       />
     </group>
   )
@@ -215,7 +330,7 @@ function SurveillanceCameras({ w, d, glow }: { w: number; d: number; glow: strin
           </mesh>
           <mesh position={[0, 0, 0.6]} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.16, 0.16, 0.3, 10]} />
-            <meshStandardMaterial color={glow} emissive={glow} emissiveIntensity={0.9} />
+            <PulseMaterial color={glow} emissive={glow} base={0.9} amp={0.6} speed={3.4} phase={i * 1.7} />
           </mesh>
         </group>
       ))}
@@ -239,7 +354,13 @@ function SurveillanceDressing({ w, d, p }: ThemeDressingProps) {
     <group>
       {/* monitor wall backing */}
       <Wall position={[-w / 2 + 0.4, 2.2, 0]} size={[0.3, 4, 12]} color={p.wall} />
-      <InstancedBoxes instances={screens} color="#0c1014" emissive={p.glow} emissiveIntensity={0.8} castShadow={false} />
+      <InstancedBoxes
+        instances={screens}
+        color="#0c1014"
+        emissive={p.glow}
+        castShadow={false}
+        pulse={{ base: 0.8, amp: 0.45, flicker: true }}
+      />
       {/* operator console */}
       <Wall position={[-w / 2 + 2.6, 0.6, 0]} size={[1.4, 1.2, 6]} color={p.accent} />
       {/* server racks */}
@@ -288,15 +409,21 @@ function PowerDressing({ w, d, p }: ThemeDressingProps) {
       {generators.map((g, i) => (
         <group key={`gen-${i}`}>
           <Wall position={[g.x, 1.25, g.z]} size={[3, 2.5, 3]} color={p.wall} />
-          {/* hazard panel */}
+          {/* hazard panel — alarm-style throb */}
           <mesh position={[g.x + (g.x < 0 ? 1.51 : -1.51), 1.4, g.z]} rotation={[0, g.x < 0 ? Math.PI / 2 : -Math.PI / 2, 0]}>
             <planeGeometry args={[2, 1.2]} />
-            <meshStandardMaterial color={p.glow} emissive={p.glow} emissiveIntensity={0.7} />
+            <PulseMaterial color={p.glow} emissive={p.glow} base={0.7} amp={0.55} speed={3.2} phase={i * 2.1} />
           </mesh>
         </group>
       ))}
       <InstancedBoxes instances={pipes} color={p.accent} metalness={0.5} roughness={0.5} />
-      <InstancedBoxes instances={valves} color="#1f2329" emissive={p.glow} emissiveIntensity={0.6} castShadow={false} />
+      <InstancedBoxes
+        instances={valves}
+        color="#1f2329"
+        emissive={p.glow}
+        castShadow={false}
+        pulse={{ base: 0.6, amp: 0.35, speed: 2.6 }}
+      />
     </group>
   )
 }
@@ -320,7 +447,13 @@ function ControlDressing({ d, p }: ThemeDressingProps) {
 
   return (
     <group>
-      <InstancedBoxes instances={screens} color="#0c1014" emissive={p.glow} emissiveIntensity={0.7} castShadow={false} />
+      <InstancedBoxes
+        instances={screens}
+        color="#0c1014"
+        emissive={p.glow}
+        castShadow={false}
+        pulse={{ base: 0.7, amp: 0.4, flicker: true }}
+      />
       {/* angled command consoles */}
       <Wall position={[-5.5, 0.6, -3]} size={[5, 1.2, 1.4]} rotationY={0.4} color={p.accent} />
       <Wall position={[5.5, 0.6, -3]} size={[5, 1.2, 1.4]} rotationY={-0.4} color={p.accent} />
@@ -328,7 +461,7 @@ function ControlDressing({ d, p }: ThemeDressingProps) {
       <Wall position={[0, 0.2, 4]} size={[4, 0.4, 4]} color={p.wall} />
       <mesh position={[0, 1.6, 4]}>
         <cylinderGeometry args={[0.4, 0.55, 2.6, 6]} />
-        <meshStandardMaterial color={p.glow} emissive={p.glow} emissiveIntensity={0.5} transparent opacity={0.55} />
+        <PulseMaterial color={p.glow} emissive={p.glow} base={0.5} amp={0.32} speed={1.8} transparent opacity={0.55} />
       </mesh>
       <Prop position={[-3.2, 0.5, 1.5]} />
       <Prop position={[3.2, 0.5, 1.5]} />

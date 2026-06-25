@@ -1785,71 +1785,10 @@ code {
   margin: 16px 0;
 }
 
-.review-q {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-}
-
-.review-q.ok {
-  border-left-color: var(--primary);
-}
-.review-q.warn {
-  border-left-color: var(--warn);
-}
-
-.review-q-num {
-  flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
-  display: grid;
-  place-items: center;
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: var(--text-dim);
-}
-
-.review-q-body {
-  flex: 1;
-}
-
-.review-q-prompt {
-  margin: 0 0 8px;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.review-q-chip {
-  display: inline-block;
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  background: var(--surface-alt);
-}
-
-.review-q-chip.ok {
-  color: var(--primary-press);
-  background: var(--success-soft);
-  border-color: rgba(23, 178, 87, 0.4);
-}
-.review-q-chip.warn {
-  color: #8a6100;
-  background: #fbf1dc;
-  border-color: rgba(211, 147, 22, 0.4);
-}
+/* NOTE: the legacy `.review-q*` page styles were removed — they collided with
+   the in-game debrief (game3d/review/ReviewSession), painting a light surface
+   behind that overlay's light text and making the prompt unreadable. The active
+   debrief styles live in styles/review-session.css. */
 
 .review-advice {
   margin-top: 10px;

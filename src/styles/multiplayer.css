@@ -478,6 +478,72 @@
   border-radius: 14px;
   z-index: 40;
 }
+
+/* Synced 3-2-1 "get ready" gate — a dim full-screen veil with a big number. */
+.mp-go-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: radial-gradient(60% 60% at 50% 45%, rgba(8, 11, 16, 0.35), rgba(8, 11, 16, 0.72));
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  text-align: center;
+}
+
+.mp-go-num {
+  font-size: clamp(72px, 22vw, 180px);
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 210, 74, 0.4);
+  animation: mp-go-pop 0.85s ease both;
+}
+
+.mp-go-go {
+  color: #56d364;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.7), 0 0 50px rgba(86, 211, 100, 0.6);
+}
+
+.mp-go-sub {
+  font-size: clamp(0.95rem, 3.6vw, 1.4rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffd24a;
+}
+
+.mp-go-wait {
+  color: #cdd6e4;
+  background: rgba(12, 16, 22, 0.7);
+  padding: 12px 22px;
+  border-radius: 14px;
+}
+
+@keyframes mp-go-pop {
+  0% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-go-num {
+    animation: none;
+  }
+}
 .mp-leave {
   position: fixed;
   top: 14px;
@@ -821,5 +887,29 @@
   .mp-loadout {
     font-size: 11px;
     padding: 4px 9px;
+  }
+}
+
+/* ---- Landscape phones: respect side notches + the home indicator ---- */
+@media (pointer: coarse) and (orientation: landscape) {
+  .mp-fire {
+    right: calc(18px + env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .mp-arena .hud-joy {
+    left: calc(18px + env(safe-area-inset-left));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .mp-leave {
+    left: calc(10px + env(safe-area-inset-left));
+  }
+  .mp-board {
+    right: calc(8px + env(safe-area-inset-right));
+  }
+  .mp-minimap {
+    left: calc(10px + env(safe-area-inset-left));
+  }
+  .mp-vitals {
+    bottom: calc(110px + env(safe-area-inset-bottom));
   }
 }

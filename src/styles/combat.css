@@ -486,3 +486,20 @@
     text-align: center;
   }
 }
+
+/* ---- Landscape phones ----
+   Short height + side notches/home-indicator: keep the bottom controls clear of
+   the safe-area insets and use the extra width so the play field isn't cramped. */
+@media (pointer: coarse) and (orientation: landscape) {
+  .combat-top {
+    top: 6px;
+  }
+  .combat-fire {
+    right: calc(18px + env(safe-area-inset-right));
+    bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+  .combat-weapon {
+    right: calc(14px + env(safe-area-inset-right));
+    bottom: calc(118px + env(safe-area-inset-bottom));
+  }
+}

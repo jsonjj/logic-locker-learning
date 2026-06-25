@@ -429,6 +429,10 @@ function FinaleInner() {
 
   return (
     <div className="world-root">
+      {/* Once we reach the end the outro cutscene takes over; unmount the
+          hallway canvas so the cutscene's canvas is the only live WebGL context
+          (mobile browsers often refuse a second one). */}
+      {phase !== 'end' && (
       <GameCanvas danger={gs.danger}>
         {/* hallway shell */}
         <Floor size={[HALL_W, HALL_D]} theme="cellblock" color="#2b313d" />
@@ -498,6 +502,7 @@ function FinaleInner() {
 
         <WeaponController disabled={blocked} weaponOverride={FINALE_WEAPON} />
       </GameCanvas>
+      )}
 
       <Hud
         objective={gs.objective}

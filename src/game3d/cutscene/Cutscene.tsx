@@ -284,6 +284,16 @@ export default function Cutscene({
     return cfg.beats
   }, [scene, cfg.beats, data.youWon, data.winnerName])
 
+  // Phones choke on shadow maps + high DPR, and many mobile browsers refuse a
+  // second simultaneous WebGL context — so keep this canvas cheap. (Pages also
+  // unmount their main canvas while a cutscene is up, so only one is ever live.)
+  const isMobile = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(pointer: coarse), (max-width: 820px)').matches,
+    [],
+  )
+
   const finish = () => {
     if (doneRef.current) return
     doneRef.current = true
@@ -309,9 +319,9 @@ export default function Cutscene({
   return (
     <div className="cutscene" role="dialog" aria-label="Story scene">
       <Canvas
-        shadows
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        shadows={!isMobile}
+        dpr={isMobile ? [1, 1.25] : [1, 1.5]}
+        gl={{ antialias: !isMobile, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false }}
         camera={{ position: [0, 4, 10], fov: 50, near: 0.1, far: 200 }}
         style={{ position: 'absolute', inset: 0 }}
       >

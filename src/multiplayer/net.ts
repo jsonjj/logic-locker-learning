@@ -127,8 +127,14 @@ export function setPlayerColor(code: string, uid: string, color: string): void {
   void update(ref(rtdb, `matches/${code}/players/${uid}`), { color })
 }
 
-/** Start the series: round 1, reset every player's score/lives. */
-export async function startMatch(code: string, durationMs: number, targetWins: number): Promise<void> {
+/**
+ * Start the series: round 1, reset every player's score/lives. The round clock
+ * is intentionally left unarmed (`goAt`/`endsAt` null) — the host arms it (and
+ * the 3-2-1 countdown) once everyone has loaded in and cleared the intro, so a
+ * player who skips the cutscene can't get a head start. `_durationMs` is kept
+ * for call-site symmetry; the actual clock is set later by `armRound`.
+ */
+export async function startMatch(code: string, _durationMs: number, targetWins: number): Promise<void> {
   const snap = await get(ref(rtdb, `matches/${code}/players`))
   const players = (snap.val() as Record<string, NetPlayer> | null) ?? {}
   const fanout: Record<string, unknown> = {
@@ -136,7 +142,8 @@ export async function startMatch(code: string, durationMs: number, targetWins: n
     'meta/startedAt': serverTimestamp(),
     'meta/round': 1,
     'meta/targetWins': targetWins,
-    'meta/endsAt': Date.now() + durationMs,
+    'meta/goAt': null,
+    'meta/endsAt': null,
     'meta/champion': null,
     'meta/lastRoundWinner': null,
     'meta/intermissionEndsAt': null,
@@ -147,19 +154,30 @@ export async function startMatch(code: string, durationMs: number, targetWins: n
     fanout[`players/${uid}/wins`] = 0
     fanout[`players/${uid}/deaths`] = 0
     fanout[`players/${uid}/alive`] = true
+    fanout[`players/${uid}/introDone`] = false
     fanout[`players/${uid}/quiz`] = null
   }
   await update(ref(rtdb, `matches/${code}`), fanout)
 }
 
-/** Begin the next round: bump the round, reset per-round score + lives. */
-export async function nextRound(code: string, round: number, durationMs: number): Promise<void> {
+/**
+ * Begin the next round: bump the round, reset per-round score + lives, and arm a
+ * fresh 3-2-1 countdown (no intro between rounds, so we can arm immediately).
+ */
+export async function nextRound(
+  code: string,
+  round: number,
+  durationMs: number,
+  countdownMs: number,
+): Promise<void> {
   const snap = await get(ref(rtdb, `matches/${code}/players`))
   const players = (snap.val() as Record<string, NetPlayer> | null) ?? {}
+  const goAt = Date.now() + countdownMs
   const fanout: Record<string, unknown> = {
     'meta/status': 'playing',
     'meta/round': round,
-    'meta/endsAt': Date.now() + durationMs,
+    'meta/goAt': goAt,
+    'meta/endsAt': goAt + durationMs,
     'meta/intermissionEndsAt': null,
     'enemies': null,
   }
@@ -169,6 +187,16 @@ export async function nextRound(code: string, round: number, durationMs: number)
     fanout[`players/${uid}/alive`] = true
   }
   await update(ref(rtdb, `matches/${code}`), fanout)
+}
+
+/** Mark that this player has cleared the arena intro cutscene. */
+export function setIntroDone(code: string, uid: string): void {
+  void update(ref(rtdb, `matches/${code}/players/${uid}`), { introDone: true })
+}
+
+/** Host: arm round 1's synced countdown + clock once everyone has loaded in. */
+export async function armRound(code: string, goAt: number, endsAt: number): Promise<void> {
+  await update(ref(rtdb, `matches/${code}/meta`), { goAt, endsAt })
 }
 
 /**

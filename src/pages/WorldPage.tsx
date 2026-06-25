@@ -261,6 +261,10 @@ function WorldInner() {
 
   return (
     <div className="world-root">
+      {/* While the intro cutscene is up we keep the world canvas unmounted so
+          only one WebGL context is live — mobile browsers often refuse a second
+          one, which left phones staring at a blank cutscene. */}
+      {!playIntroCut && (
       <GameCanvas danger={gs.danger}>
         <HubWorld unlocked={unlocked} objectiveSectorId={objectiveSectorId} onEnterSector={enter} />
         <ThirdPersonPlayer spawn={hubDef.spawn} frozen={blocked} />
@@ -283,6 +287,7 @@ function WorldInner() {
         ))}
         <WeaponController disabled={blocked} />
       </GameCanvas>
+      )}
 
       <Hud
         objective={gs.objective}

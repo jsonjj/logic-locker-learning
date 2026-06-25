@@ -378,3 +378,15 @@
     font-size: 0.74rem;
   }
 }
+
+/* ---- Landscape phones ---- */
+@media (pointer: coarse) and (orientation: landscape) {
+  .ll-minimap {
+    top: 68px;
+    right: calc(10px + env(safe-area-inset-right));
+  }
+  .mastery-loop {
+    left: calc(10px + env(safe-area-inset-left));
+    bottom: calc(150px + env(safe-area-inset-bottom));
+  }
+}

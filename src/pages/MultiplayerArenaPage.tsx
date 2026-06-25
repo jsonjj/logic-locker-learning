@@ -17,12 +17,15 @@ import {
   reportDeath,
   reportRespawn,
   submitQuiz,
+  setIntroDone,
+  armRound,
 } from '../multiplayer/net'
 import {
   playerSpawn,
   respawnDelay,
   ROUND_DURATION_MS,
   QUIZ_INTERMISSION_MS,
+  COUNTDOWN_MS,
   MAX_HP,
   quizTier,
   quizBuff,
@@ -120,6 +123,27 @@ function Arena({ code, uid }: { code: string; uid: string }) {
   const playing = status === 'playing'
   const round = meta?.round ?? 1
 
+  // Round action begins at meta.goAt (after the countdown). Until then players
+  // are frozen and everyone watches the same 3-2-1.
+  const goAt = meta?.goAt
+
+  // A ticking clock so the synced 3-2-1 countdown re-renders and "go" flips on
+  // time. It stops shortly after the round goes live so we don't re-render every
+  // frame for the whole match (it restarts when the next round arms a new goAt).
+  const [nowTick, setNowTick] = useState(() => Date.now())
+  useEffect(() => {
+    if (status !== 'playing') return
+    const t = setInterval(() => {
+      const now = Date.now()
+      setNowTick(now)
+      if (goAt && now >= goAt + 300) clearInterval(t)
+    }, 150)
+    return () => clearInterval(t)
+  }, [status, goAt])
+  const live = playing && !!goAt && nowTick >= goAt
+  const inCountdown = playing && (!goAt || nowTick < goAt)
+  const countdownNum = goAt ? Math.max(0, Math.ceil((goAt - nowTick) / 1000)) : null
+
   useEffect(() => {
     const unsub = subscribeMatch(code, (s) => {
       playersRef.current = s.players
@@ -213,12 +237,39 @@ function Arena({ code, uid }: { code: string; uid: string }) {
         const timedOut = Boolean(m.intermissionEndsAt && now >= m.intermissionEndsAt)
         if (allAnswered || timedOut) {
           advancedRoundRef.current = round
-          void nextRound(code, round + 1, ROUND_DURATION_MS)
+          void nextRound(code, round + 1, ROUND_DURATION_MS, COUNTDOWN_MS)
         }
       }
     }, 400)
     return () => clearInterval(t)
   }, [isHost, status, round, code, meta])
+
+  // --- Host: arm round 1's countdown once everyone has cleared the intro ----
+  // Later rounds are armed by nextRound (no intro between them), so this only
+  // fires for the unarmed opening round. A timeout fallback prevents one player
+  // who never finishes loading from stalling the whole match.
+  useEffect(() => {
+    if (!isHost) return
+    if (status !== 'playing' || meta?.goAt) return
+    const startedAt = meta?.startedAt ?? Date.now()
+    const t = setInterval(() => {
+      const online = Object.values(playersRef.current).filter((p) => p.online)
+      const everyoneReady = online.length > 0 && online.every((p) => p.introDone)
+      const waitedTooLong = Date.now() - startedAt > 15000
+      if (everyoneReady || waitedTooLong) {
+        const go = Date.now() + COUNTDOWN_MS
+        void armRound(code, go, go + ROUND_DURATION_MS)
+      }
+    }, 400)
+    return () => clearInterval(t)
+  }, [isHost, status, meta?.goAt, meta?.startedAt, code])
+
+  // Once I've watched/skipped the intro, tell the room so the host can count us
+  // all in together.
+  const finishIntro = useCallback(() => {
+    setMpIntroDone(true)
+    setIntroDone(code, uid)
+  }, [code, uid])
 
   // --- Local death / respawn (delay grows each death) ---------------------
   const onDeath = useCallback(() => {
@@ -251,7 +302,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
   const ids = useMemo(() => roster.map((p) => p.uid), [roster])
   const myIndex = Math.max(0, roster.findIndex((p) => p.uid === uid))
   const spawn = useMemo(() => playerSpawn(myIndex), [myIndex])
-  const alive = playing && !dead
+  const alive = live && !dead
 
   const onLeave = useCallback(async () => {
     await leaveMatch(code, uid, isHost)
@@ -302,6 +353,10 @@ function Arena({ code, uid }: { code: string; uid: string }) {
 
   return (
     <div className="mp-arena">
+      {/* The arena canvas only mounts after the intro cutscene unmounts, so the
+          two never run as simultaneous WebGL contexts (mobile browsers refuse a
+          second one, which left phones with a blank intro). */}
+      {mpIntroDone && (
       <GameStateProvider>
         <GameCanvas>
           <ArenaEnvironment />
@@ -311,7 +366,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
             ref={enemiesHandle}
             code={code}
             isHost={isHost}
-            playing={playing}
+            playing={live}
             playersRef={playersRef}
             selfUid={uid}
             enemiesSnapshot={enemies}
@@ -328,7 +383,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
           />
           <PlayerVitals
             enemiesViewRef={enemiesViewRef}
-            playing={playing}
+            playing={live}
             alive={alive}
             maxHp={maxHp}
             resetKey={round}
@@ -356,6 +411,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
           mastery={mastery}
         />
       </GameStateProvider>
+      )}
 
       {status === 'intermission' && (
         <Intermission
@@ -367,6 +423,24 @@ function Arena({ code, uid }: { code: string; uid: string }) {
           playersRef={playersRef}
         />
       )}
+
+      {/* Synced 3-2-1 "get ready" gate. Shows while the round is unarmed
+          (waiting for everyone to load in) and during the countdown itself. */}
+      {mpIntroDone && inCountdown && (
+        <div className="mp-go-overlay">
+          {countdownNum && countdownNum > 0 ? (
+            <>
+              <div className="mp-go-num">{countdownNum}</div>
+              <div className="mp-go-sub">Get ready…</div>
+            </>
+          ) : goAt ? (
+            <div className="mp-go-num mp-go-go">GO!</div>
+          ) : (
+            <div className="mp-go-sub mp-go-wait">Waiting for everyone to load in…</div>
+          )}
+        </div>
+      )}
+
       {status !== 'playing' && status !== 'intermission' && (
         <div className="mp-countdown">Waiting for the match to start…</div>
       )}
@@ -376,7 +450,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
       </button>
 
       {!mpIntroDone && (
-        <Cutscene scene="mp-intro" onDone={() => setMpIntroDone(true)} />
+        <Cutscene scene="mp-intro" onDone={finishIntro} />
       )}
     </div>
   )

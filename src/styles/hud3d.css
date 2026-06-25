@@ -784,3 +784,24 @@
     padding: 4px 9px;
   }
 }
+
+/* ---- Landscape phones ----
+   Respect side notches / the home indicator and trim vertical offsets so the
+   short landscape height isn't crowded at the top. */
+@media (pointer: coarse) and (orientation: landscape) {
+  .hud3d-top {
+    padding: 6px calc(10px + env(safe-area-inset-right)) 6px calc(10px + env(safe-area-inset-left));
+  }
+  .hud3d-banner {
+    max-width: 42vw;
+  }
+  .hud-joy {
+    left: calc(20px + env(safe-area-inset-left));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    width: 116px;
+    height: 116px;
+  }
+  .hud-wayfinder {
+    top: 50px;
+  }
+}

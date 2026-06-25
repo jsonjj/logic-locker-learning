@@ -24,6 +24,9 @@ export interface NetPlayer {
   deaths?: number
   online?: boolean
   joinedAt?: number
+  /** True once this player has watched/skipped the arena intro cutscene. The
+   *  host waits for everyone before arming the round countdown. */
+  introDone?: boolean
   /** Result of the between-rounds quiz (drives next round's buff). */
   quiz?: NetQuiz
 }
@@ -59,6 +62,10 @@ export interface NetMeta {
   status: MatchStatus
   createdAt: number
   startedAt?: number
+  /** Wall-clock time (ms) the current round's action begins (after the shared
+   *  3-2-1 countdown). Players are frozen until this passes; null/absent means
+   *  the round isn't armed yet (still waiting for everyone to load in). */
+  goAt?: number
   /** Wall-clock time (ms) the current round ends. */
   endsAt?: number
   /** 1-based round number in a first-to-N series. */

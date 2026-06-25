@@ -526,6 +526,16 @@
   }
 }
 
+/* ---- Landscape phones: keep the center action button above the home bar ---- */
+@media (pointer: coarse) and (orientation: landscape) {
+  .game-action-btn {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+  .game-action-btn--boss {
+    bottom: calc(22px + env(safe-area-inset-bottom));
+  }
+}
+
 /* ---------- Particle burst ---------- */
 
 .fx-layer {

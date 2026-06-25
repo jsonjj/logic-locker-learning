@@ -81,6 +81,10 @@ export function respawnDelay(deaths: number): number {
 
 // --- Rounds (first-to-N series) -------------------------------------------
 export const ROUND_DURATION_MS = 75 * 1000
+/** Length of the synced 3-2-1 "get ready" countdown before each round's action.
+ *  Players are frozen for this window so nobody who skipped the intro can get a
+ *  head start — the fight only begins once everyone is counted in together. */
+export const COUNTDOWN_MS = 3500
 export const INTERMISSION_MS = 6 * 1000
 /** Max time the between-rounds quiz waits before starting the next round. */
 export const QUIZ_INTERMISSION_MS = 30 * 1000

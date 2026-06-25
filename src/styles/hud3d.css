@@ -725,3 +725,62 @@
     transition: none !important;
   }
 }
+
+/* ---- Mobile declutter (touch / small screens) ----
+   Trims the top banner/chip/menu cluster, shrinks the alarm + wayfinder, hides
+   the optional leaderboard peek, and keeps the joystick comfortably reachable
+   so the play area isn't crowded by overlays. */
+@media (pointer: coarse), (max-width: 820px) {
+  .hud3d-top {
+    padding: 8px 10px;
+  }
+  .hud3d-banner {
+    max-width: 50vw;
+  }
+  .hud3d-objective-text {
+    font-size: 0.8rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hud3d-objective-kicker {
+    font-size: 0.56rem;
+  }
+  .hud-alarm {
+    max-width: 168px;
+    padding: 4px 9px 4px 8px;
+    gap: 7px;
+  }
+  .hud-chip {
+    font-size: 0.68rem;
+    padding: 5px 9px;
+  }
+  .hud-menu-btn {
+    font-size: 0.72rem;
+    padding: 6px 11px;
+  }
+
+  /* Optional widget — drop it on small screens to free the bottom-left edge. */
+  .hud-lb-peek {
+    display: none;
+  }
+
+  .hud-wayfinder {
+    transform: translateX(-50%) scale(0.82);
+    transform-origin: top center;
+  }
+
+  .hud-joy {
+    left: 18px;
+    bottom: 20px;
+    width: 124px;
+    height: 124px;
+  }
+
+  .room-elapsed {
+    top: 44px;
+    font-size: 0.66rem;
+    padding: 4px 9px;
+  }
+}

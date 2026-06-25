@@ -432,3 +432,57 @@
   line-height: 1.5;
   margin: 0 0 22px;
 }
+
+/* ---- Mobile declutter (touch / small screens) ----
+   Shrinks the combat HUD, drops the redundant top "Gear" button (the weapon
+   chip already opens the inventory), compacts the weapon chip to an icon, and
+   gives the fire button a bigger, lifted thumb target. */
+@media (pointer: coarse), (max-width: 820px) {
+  .combat-top {
+    top: 8px;
+    gap: 8px;
+  }
+  .combat-lives {
+    font-size: 1.05rem;
+  }
+  .combat-timer {
+    font-size: 0.78rem;
+    padding: 4px 9px;
+  }
+  /* Redundant with the weapon chip below, which also opens the inventory. */
+  .combat-gear-btn {
+    display: none;
+  }
+
+  .combat-weapon {
+    right: 12px;
+    bottom: 154px;
+    padding: 7px 10px;
+    gap: 0;
+  }
+  .combat-weapon-name {
+    display: none;
+  }
+  .combat-weapon-icon {
+    font-size: 1.25rem;
+  }
+
+  .combat-fire {
+    right: 16px;
+    bottom: 34px;
+    width: 88px;
+    height: 88px;
+    font-size: 0.92rem;
+  }
+  .combat-fire-key {
+    display: none;
+  }
+
+  .combat-toast {
+    bottom: 150px;
+    font-size: 0.78rem;
+    padding: 8px 13px;
+    max-width: 78vw;
+    text-align: center;
+  }
+}

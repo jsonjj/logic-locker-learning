@@ -768,12 +768,58 @@
   z-index: 44;
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 820px) {
+  .mp-timer {
+    top: 8px;
+    padding: 3px 12px;
+  }
+  .mp-clock {
+    font-size: 20px;
+  }
   .mp-board {
-    width: 150px;
+    top: 50px;
+    right: 8px;
+    width: 142px;
+    padding: 7px 9px;
     font-size: 12px;
   }
+  .mp-board-row {
+    font-size: 12px;
+    gap: 6px;
+    padding: 2px 3px;
+  }
+  .mp-leave {
+    top: 10px;
+    left: 10px;
+    padding: 6px 11px;
+    font-size: 0.78rem;
+  }
+
+  /* Move the minimap off the bottom-left so it never sits under the joystick. */
   .mp-minimap {
-    bottom: 120px;
+    top: 52px;
+    left: 10px;
+    bottom: auto;
+  }
+
+  .mp-arena .hud-joy {
+    left: 18px;
+    bottom: 22px;
+    width: 124px;
+    height: 124px;
+  }
+  .mp-fire {
+    right: 18px;
+    bottom: 30px;
+    width: 88px;
+    height: 88px;
+  }
+
+  .mp-vitals {
+    bottom: 130px;
+  }
+  .mp-loadout {
+    font-size: 11px;
+    padding: 4px 9px;
   }
 }

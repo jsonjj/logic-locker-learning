@@ -503,6 +503,29 @@
   pointer-events: none;
 }
 
+/* ---- Mobile declutter (touch / small screens) ----
+   Compacts the center-bottom action buttons and lifts them clear of the bottom
+   hint bar so they sit between (not under) the joystick and fire controls. */
+@media (pointer: coarse), (max-width: 820px) {
+  .game-action-btn {
+    width: 68px;
+    height: 68px;
+    bottom: 58px;
+    font-size: 0.82rem;
+  }
+  .game-action-btn--boss {
+    bottom: 60px;
+    padding: 11px 18px;
+    font-size: 0.88rem;
+  }
+  .game-hint-bar {
+    bottom: 10px;
+    font-size: 0.66rem;
+    max-width: 70vw;
+    text-align: center;
+  }
+}
+
 /* ---------- Particle burst ---------- */
 
 .fx-layer {

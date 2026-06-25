@@ -1,0 +1,337 @@
+/* [Agent 2] DOM overlay styling for the 3D world minimap. */
+
+.ll-minimap {
+  position: absolute;
+  /* Pushed below the top-right cluster (logout + pause/menu + progress chip)
+     so it never covers the pause button. */
+  top: 104px;
+  right: 16px;
+  width: 168px;
+  padding: 10px 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(20, 25, 33, 0.86), rgba(12, 15, 20, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(6px);
+  color: #e8edf5;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  user-select: none;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.ll-minimap__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9fb0c6;
+  margin: 0 2px 8px;
+}
+
+.ll-minimap__title b {
+  color: #f2f5fa;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 11px;
+}
+
+.ll-minimap__stage {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  border-radius: 10px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / 16px 16px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / 16px 16px,
+    radial-gradient(120% 120% at 50% 0%, rgba(70, 90, 120, 0.25), rgba(8, 11, 16, 0.9));
+}
+
+.ll-minimap__room {
+  position: absolute;
+  border: 1.5px solid rgba(150, 175, 210, 0.55);
+  border-radius: 4px;
+  background: rgba(90, 120, 160, 0.1);
+}
+
+.ll-minimap__marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+.ll-minimap__marker--door {
+  background: #7fd2ff;
+}
+
+.ll-minimap__marker--door.is-locked {
+  background: #5a6473;
+}
+
+.ll-minimap__marker--exit {
+  background: #46e0c0;
+  width: 11px;
+  height: 11px;
+}
+
+.ll-minimap__marker--anchor {
+  background: transparent;
+  border: 2px solid #f5a524;
+  width: 12px;
+  height: 12px;
+}
+
+/* Loose item pickups (gear lying around) */
+.ll-minimap__marker--item {
+  background: #ffd24a;
+  width: 9px;
+  height: 9px;
+  box-shadow: 0 0 6px rgba(255, 210, 74, 0.85);
+  animation: ll-minimap-itempulse 1.6s ease-in-out infinite;
+}
+
+/* The end-game detonator key */
+.ll-minimap__marker--key {
+  background: #ffe14a;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #fff3b0;
+  box-shadow: 0 0 9px rgba(255, 225, 74, 0.9);
+  animation: ll-minimap-itempulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ll-minimap-itempulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 210, 74, 0.6); }
+  50% { box-shadow: 0 0 12px rgba(255, 225, 120, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ll-minimap__marker--item,
+  .ll-minimap__marker--key {
+    animation: none;
+  }
+}
+
+.ll-minimap__objective {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #f5a524;
+  box-shadow: 0 0 10px rgba(245, 165, 36, 0.8);
+  animation: ll-minimap-pulse 1.4s ease-in-out infinite;
+}
+
+/* Dotted guide line from the player to the current objective. */
+.ll-minimap__lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.ll-minimap__line {
+  stroke: #f5a524;
+  stroke-width: 1.6;
+  stroke-dasharray: 3 4;
+  stroke-linecap: round;
+  opacity: 0.75;
+  animation: ll-minimap-dash 0.8s linear infinite;
+}
+
+/* Live entity dots (enemies / allies) plotted imperatively each frame. */
+.ll-minimap__layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ll-minimap__dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  will-change: left, top;
+}
+
+.ll-minimap__dot--enemy {
+  background: #ff4d4d;
+  box-shadow: 0 0 6px rgba(255, 77, 77, 0.95);
+}
+
+.ll-minimap__dot--ally {
+  background: #4db5ff;
+  box-shadow: 0 0 6px rgba(77, 181, 255, 0.95);
+}
+
+/* Inline variant used inside the legend. */
+.ll-minimap__dot--static {
+  position: static;
+  transform: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+}
+
+.ll-minimap__legend {
+  position: absolute;
+  left: 5px;
+  bottom: 4px;
+  display: flex;
+  gap: 9px;
+  padding: 3px 6px;
+  border-radius: 7px;
+  background: rgba(8, 11, 16, 0.6);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #c4cedd;
+}
+
+.ll-minimap__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ll-minimap__player {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 12px solid #ffd27a;
+  filter: drop-shadow(0 0 4px rgba(255, 210, 122, 0.9));
+  transform-origin: 50% 70%;
+  will-change: transform;
+}
+
+@keyframes ll-minimap-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes ll-minimap-dash {
+  to {
+    stroke-dashoffset: -7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ll-minimap__line,
+  .ll-minimap__objective {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Mastery Loop panel — frames audits + Warden + prestige as the
+   place real learning is rewarded. Bottom-left, out of the way of
+   the central action button and the top-right minimap cluster.
+   ============================================================ */
+.mastery-loop {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 9;
+  width: 232px;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(24, 20, 34, 0.92), rgba(14, 12, 22, 0.94));
+  border: 1px solid rgba(170, 140, 255, 0.28);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(6px);
+  color: #ece8f6;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.mastery-loop__kicker {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #c4a9ff;
+  margin-bottom: 6px;
+}
+
+.mastery-loop__copy {
+  margin: 0 0 10px;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #b9b2cf;
+}
+
+.mastery-loop__steps {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: #d7d2e8;
+}
+
+.mastery-loop__steps li.is-now {
+  color: #fff;
+  font-weight: 700;
+}
+
+.mastery-loop__btn {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: #fff;
+  cursor: pointer;
+  background-image: linear-gradient(135deg, #8b5cf6, #6d8bff);
+  box-shadow: 0 8px 20px rgba(123, 92, 246, 0.4);
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.mastery-loop__btn:hover {
+  filter: brightness(1.08);
+}
+
+.mastery-loop__btn:active {
+  transform: scale(0.97);
+}
+
+.mastery-loop__btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (max-width: 560px) {
+  .mastery-loop {
+    width: 188px;
+    bottom: 96px;
+  }
+}

@@ -1,0 +1,292 @@
+/* Learn beat + mission intro overlays (integrator-owned) */
+
+.learn-overlay,
+.mission-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(245, 165, 36, 0.1), transparent 60%),
+    rgba(8, 10, 15, 0.74);
+  backdrop-filter: blur(4px);
+}
+
+.learn-card,
+.mission-card {
+  width: 100%;
+  max-width: 540px;
+  background: linear-gradient(180deg, #1b212b 0%, #161b22 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 26px 28px;
+  color: #eef1f5;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+}
+
+.learn-kicker,
+.mission-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #f5a524;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.learn-teacher {
+  font-style: italic;
+  color: #c7d2e2;
+  margin: 0 0 14px;
+}
+
+.learn-term {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+}
+
+.learn-detail {
+  margin: 0 0 8px;
+  line-height: 1.5;
+  color: #dde4ee;
+}
+
+.learn-example {
+  margin: 0;
+  color: #9fb0c4;
+  font-size: 0.92rem;
+}
+
+.learn-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.learn-buttons {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.learn-progress {
+  color: #8895a6;
+  font-size: 0.85rem;
+}
+
+/* ---- Mission question (pre / re-ask) inside the learn beat ---- */
+.learn-q-prompt {
+  margin: 4px 0 16px;
+  font-size: 1.2rem;
+  line-height: 1.4;
+  color: #fff;
+}
+
+.learn-q-choices {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.learn-q-choice {
+  text-align: left;
+  width: 100%;
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #eef1f5;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.learn-q-choice:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.learn-q-choice:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.learn-q-choice:disabled {
+  cursor: default;
+}
+
+.learn-q-choice.is-picked {
+  border-color: #f5a524;
+  background: rgba(245, 165, 36, 0.12);
+}
+
+.learn-q-choice.is-correct {
+  border-color: #3fb978;
+  background: rgba(63, 185, 120, 0.16);
+}
+
+.learn-q-choice.is-wrong {
+  border-color: #e5484d;
+  background: rgba(229, 72, 77, 0.14);
+}
+
+.learn-q-note {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: #9fb0c4;
+}
+
+.learn-q-feedback {
+  margin: 10px 0 0;
+  padding: 11px 14px;
+  border-radius: 11px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.learn-q-feedback.is-correct {
+  background: rgba(63, 185, 120, 0.14);
+  border: 1px solid rgba(63, 185, 120, 0.4);
+  color: #cdeedd;
+}
+
+.learn-q-feedback.is-wrong {
+  background: rgba(229, 72, 77, 0.12);
+  border: 1px solid rgba(229, 72, 77, 0.38);
+  color: #f3cdce;
+}
+
+/* ---- Learning-style picker (ModeSelectPage) ---- */
+.ll-style-picker {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto 26px;
+}
+
+.ll-style-picker-head {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.ll-style-title {
+  margin: 0 0 6px;
+  font-size: 1.3rem;
+  color: #f4f7fb;
+}
+
+.ll-style-sub {
+  margin: 0 auto;
+  max-width: 620px;
+  color: #9fb0c4;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.ll-style-sub strong {
+  color: #f5a524;
+}
+
+.ll-style-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .ll-style-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ll-style-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 18px 18px 20px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(27, 33, 43, 0.92) 0%, rgba(22, 27, 34, 0.92) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #eef1f5;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.ll-style-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 165, 36, 0.45);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.8);
+}
+
+.ll-style-card.is-active {
+  border-color: #f5a524;
+  box-shadow: 0 0 0 1px #f5a524, 0 20px 46px -22px rgba(245, 165, 36, 0.55);
+  background: linear-gradient(180deg, rgba(45, 38, 22, 0.95) 0%, rgba(28, 27, 22, 0.95) 100%);
+}
+
+.ll-style-glyph {
+  font-size: 1.7rem;
+  line-height: 1;
+  color: #f5a524;
+  margin-bottom: 6px;
+}
+
+.ll-style-name {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.ll-style-tagline {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f5a524;
+}
+
+.ll-style-desc {
+  margin-top: 6px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #b9c4d2;
+}
+
+.ll-style-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f5a524;
+}
+
+/* Mission intro */
+.mission-title {
+  font-size: 1.6rem;
+  margin: 0 0 6px;
+}
+
+.mission-tagline {
+  color: #f5a524;
+  font-weight: 700;
+  margin: 0 0 16px;
+}
+
+.mission-lines {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.mission-line {
+  line-height: 1.5;
+  color: #dde4ee;
+}
+
+.mission-line b {
+  color: #fff;
+}

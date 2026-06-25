@@ -1,0 +1,30 @@
+.global-home {
+  position: fixed;
+  top: 12px;
+  right: 120px;
+  z-index: 2000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(18, 20, 28, 0.72);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.2px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.global-home:hover {
+  background: linear-gradient(135deg, #ffb357 0%, #e0892f 100%);
+  border-color: transparent;
+  color: #1a1206;
+}
+
+.global-home:active {
+  transform: scale(0.96);
+}

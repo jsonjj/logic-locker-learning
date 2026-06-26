@@ -5,6 +5,8 @@ import { GameCanvas, ThirdPersonPlayer, Waypoint, Floor, Wall, Door } from '../g
 import Hud from '../game3d/hud/Hud'
 import GameMenu from '../game3d/hud/GameMenu'
 import CombatHud from '../game3d/hud/CombatHud'
+import Hotbar from '../game3d/hud/Hotbar'
+import { useHotbar } from '../game3d/hud/useHotbar'
 import InventoryPanel from '../game3d/hud/InventoryPanel'
 import GameOver from '../game3d/hud/GameOver'
 import Minimap from '../game3d/world/Minimap'
@@ -227,7 +229,7 @@ function FinaleInner() {
     setExploded(false)
     setFuse(FUSE_SEC)
     setPhase('fight')
-    run.startRun(5 + inv.bonusLives)
+    run.startRun(5 + inv.bonusLives, inv.armorPoints)
   }
 
   useEffect(() => {
@@ -239,13 +241,19 @@ function FinaleInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Player damage -> lives (heavy enemies hit for more).
+  // Player damage -> armor shield first, then lives (heavy enemies hit for more).
   useEffect(() => {
     combat.setPlayerDamageHandler((amount) => {
-      for (let i = 0; i < Math.max(1, amount); i++) run.loseLife()
+      run.takeHit(Math.max(1, amount))
     })
     return () => combat.setPlayerDamageHandler(null)
   }, [combat, run])
+
+  // Quick bar: 1-9 to swap weapons / use consumables; consumables heal a life.
+  const activateHotbar = useHotbar({
+    enabled: !blocked,
+    onUseConsumable: (item) => run.gainLife(item.heal ?? 1),
+  })
 
   // Quick inventory toggle.
   useEffect(() => {
@@ -527,11 +535,14 @@ function FinaleInner() {
       <CombatHud
         lives={run.lives}
         maxLives={run.maxLives}
+        shield={run.shield}
+        maxShield={run.maxShield}
         weapon={FINALE_WEAPON}
         timeLeftSec={null}
         onOpenInventory={() => setInvOpen(true)}
         toast={toast}
       />
+      {!blocked && <Hotbar onActivate={activateHotbar} />}
       <InventoryPanel open={invOpen} onClose={() => setInvOpen(false)} />
       <GameOver
         open={run.isGameOver}

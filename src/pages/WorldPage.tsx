@@ -15,6 +15,8 @@ import Pickup from '../game3d/combat/Pickup'
 import { useRun } from '../game3d/state/RunContext'
 import { useInventory } from '../game3d/state/InventoryContext'
 import CombatHud from '../game3d/hud/CombatHud'
+import Hotbar from '../game3d/hud/Hotbar'
+import { useHotbar } from '../game3d/hud/useHotbar'
 import InventoryPanel from '../game3d/hud/InventoryPanel'
 import GameOver from '../game3d/hud/GameOver'
 import { SCATTERED_PICKUPS, gear } from '../game3d/systems/gear'
@@ -152,18 +154,24 @@ function WorldInner() {
 
   // Begin (or refresh) the run when arriving at the hub.
   useEffect(() => {
-    run.startRun(3 + inv.bonusLives)
+    run.startRun(3 + inv.bonusLives, inv.armorPoints)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Guard contact damage -> lose lives (i-frames in CombatContext). Heavy
-  // enemies can deal more than one.
+  // Guard contact damage -> armor shield first, then lives (i-frames in
+  // CombatContext). Heavy enemies can deal more than one.
   useEffect(() => {
     combat.setPlayerDamageHandler((amount) => {
-      for (let i = 0; i < Math.max(1, amount); i++) run.loseLife()
+      run.takeHit(Math.max(1, amount))
     })
     return () => combat.setPlayerDamageHandler(null)
   }, [combat, run])
+
+  // Quick bar: 1-9 to swap weapons / use consumables; consumables heal a life.
+  const activateHotbar = useHotbar({
+    enabled: !blocked,
+    onUseConsumable: (item) => run.gainLife(item.heal ?? 1),
+  })
 
   // Endless arena: once every block is cleared, the yard floods with a swarm of
   // varied enemies, kept topped up between HORDE_MIN and HORDE_MAX as you cull them.
@@ -204,7 +212,7 @@ function WorldInner() {
   }
 
   function handleRestart() {
-    run.startRun(3 + inv.bonusLives)
+    run.startRun(3 + inv.bonusLives, inv.armorPoints)
     setGuards(HUB_GUARDS)
   }
 
@@ -311,11 +319,14 @@ function WorldInner() {
       <CombatHud
         lives={run.lives}
         maxLives={run.maxLives}
+        shield={run.shield}
+        maxShield={run.maxShield}
         weapon={inv.weapon}
         timeLeftSec={null}
         onOpenInventory={() => setInvOpen(true)}
         toast={toast}
       />
+      {!blocked && <Hotbar onActivate={activateHotbar} />}
       <InventoryPanel open={invOpen} onClose={() => setInvOpen(false)} />
       <GameOver open={run.isGameOver} onRestart={handleRestart} />
 

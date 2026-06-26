@@ -1,4 +1,10 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  type RefObject,
+} from 'react'
 import { useFrame } from '@react-three/fiber'
 import { type Group } from 'three'
 import { useGameState } from '../game3d/state/GameStateContext'
@@ -30,6 +36,12 @@ interface PlayerVitalsProps {
   onDeath: () => void
 }
 
+/** Imperative handle so the HUD/quick-bar can apply consumable healing. */
+export interface PlayerVitalsHandle {
+  /** Restore HP (clamped to max). No-op while downed. */
+  heal: (n: number) => void
+}
+
 /** Local incoming-fire pool — each client simulates the shots aimed at itself. */
 const POOL = 20
 interface Projectile {
@@ -50,15 +62,18 @@ interface Projectile {
  * Each client owns its own health; on death it fires `onDeath` and the arena
  * schedules the respawn (which grows slightly longer each time you go down).
  */
-export default function PlayerVitals({
-  enemiesViewRef,
-  playing,
-  alive,
-  maxHp,
-  resetKey,
-  onHp,
-  onDeath,
-}: PlayerVitalsProps) {
+function PlayerVitalsInner(
+  {
+    enemiesViewRef,
+    playing,
+    alive,
+    maxHp,
+    resetKey,
+    onHp,
+    onDeath,
+  }: PlayerVitalsProps,
+  ref: React.Ref<PlayerVitalsHandle>,
+) {
   const gs = useGameState()
   const hp = useRef(maxHp)
   const dmgAcc = useRef(0)
@@ -100,6 +115,19 @@ export default function PlayerVitals({
       onDeath()
     }
   }
+
+  // Quick-bar consumables heal the local player's HP.
+  useImperativeHandle(
+    ref,
+    () => ({
+      heal: (n: number) => {
+        if (downed.current) return
+        hp.current = Math.min(maxRef.current, hp.current + Math.max(1, Math.floor(n)))
+        onHp(hp.current)
+      },
+    }),
+    [onHp],
+  )
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 1 / 30)
@@ -257,3 +285,6 @@ export default function PlayerVitals({
     </group>
   )
 }
+
+const PlayerVitals = forwardRef(PlayerVitalsInner)
+export default PlayerVitals

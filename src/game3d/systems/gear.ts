@@ -1,6 +1,6 @@
 import { sectors } from '../../data/sectors'
 
-export type GearSlot = 'weapon' | 'armor' | 'utility'
+export type GearSlot = 'weapon' | 'armor' | 'utility' | 'consumable'
 export type WeaponKind = 'ranged' | 'melee'
 
 export interface GearItem {
@@ -24,10 +24,22 @@ export interface GearItem {
   /** Relative power tier for sorting/UI (higher = stronger). */
   tier?: number
   // --- passive effects ---
-  /** Extra lives granted while equipped (armor). */
+  /** Extra lives granted while equipped (utility). */
   bonusLives?: number
   /** Movement speed multiplier while equipped (utility). */
   speedMult?: number
+  /**
+   * Armor shield points granted while equipped. Acts as a regenerating buffer
+   * that absorbs hits before health: in single-player it soaks this many enemy
+   * hits before a life is lost (refills each room); in multiplayer it adds this
+   * much effective HP (refills each round).
+   */
+  armorPoints?: number
+  // --- consumables (slot === 'consumable') ---
+  /** Health restored when used (lives in single-player, HP in multiplayer). */
+  heal?: number
+  /** Tech Cores needed to buy one (consumables are stackable & spent on use). */
+  cost?: number
 }
 
 export const GEAR: Record<string, GearItem> = {
@@ -192,8 +204,8 @@ export const GEAR: Record<string, GearItem> = {
     slot: 'armor',
     icon: '🛡️',
     color: '#8fb6ff',
-    desc: 'Plated vest. Soak one extra hit before you go down.',
-    bonusLives: 1,
+    desc: 'Plated vest. A 2-point shield soaks hits before your health — recharges every room.',
+    armorPoints: 2,
   },
   'energy-shield': {
     id: 'energy-shield',
@@ -201,8 +213,8 @@ export const GEAR: Record<string, GearItem> = {
     slot: 'armor',
     icon: '🟦',
     color: '#7fd2ff',
-    desc: 'Personal barrier. Grants two extra hits.',
-    bonusLives: 2,
+    desc: 'Personal barrier. A 4-point shield absorbs heavy fire before your health — recharges every room.',
+    armorPoints: 4,
   },
   'combat-boots': {
     id: 'combat-boots',
@@ -222,6 +234,59 @@ export const GEAR: Record<string, GearItem> = {
     desc: 'Auto-stabilizer. Restores one life at the start of each room.',
     bonusLives: 1,
   },
+  // --- Consumables (stackable; bought with Tech Cores, spent on use) ---------
+  stim: {
+    id: 'stim',
+    name: 'Stim Shot',
+    slot: 'consumable',
+    icon: '💉',
+    color: '#7ef0a8',
+    desc: 'A quick jab. Restores 1 health on use.',
+    heal: 1,
+    cost: 2,
+  },
+  medpack: {
+    id: 'medpack',
+    name: 'Med Pack',
+    slot: 'consumable',
+    icon: '🧰',
+    color: '#5ee0a8',
+    desc: 'Field dressing kit. Restores 2 health on use.',
+    heal: 2,
+    cost: 4,
+  },
+  'trauma-kit': {
+    id: 'trauma-kit',
+    name: 'Trauma Kit',
+    slot: 'consumable',
+    icon: '🩺',
+    color: '#37e0c0',
+    desc: 'Surgical-grade kit. Restores 3 health on use.',
+    heal: 3,
+    cost: 7,
+  },
+}
+
+/** Every buyable consumable, cheapest first (for the inventory shop). */
+export const CONSUMABLES: GearItem[] = Object.values(GEAR)
+  .filter((g) => g.slot === 'consumable')
+  .sort((a, b) => (a.cost ?? 0) - (b.cost ?? 0))
+
+/**
+ * A healing drop for clearing a room — so playing well (not just spending cores)
+ * keeps you stocked. Cleaner play drops a stronger kit:
+ *   - truly perfect (zero wrong taps) → Trauma Kit
+ *   - clean/recovered (no unrecovered mistakes) → Med Pack
+ *   - otherwise → Stim(s), with a bonus for a big comeback.
+ */
+export function rollConsumableDrop(
+  rawMistakes: number,
+  flawless: boolean,
+  comebacks: number,
+): { id: string; n: number } {
+  if (rawMistakes <= 0) return { id: 'trauma-kit', n: 1 }
+  if (flawless) return { id: 'medpack', n: 1 }
+  return { id: 'stim', n: 1 + (comebacks >= 2 ? 1 : 0) }
 }
 
 /** The starting loadout (always owned) — a guaranteed but feeble gun. */

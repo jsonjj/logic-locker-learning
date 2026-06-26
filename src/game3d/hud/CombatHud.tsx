@@ -5,6 +5,9 @@ import '../../styles/combat.css'
 export interface CombatHudProps {
   lives: number
   maxLives: number
+  /** Current armor shield points (absorb hits before lives). */
+  shield?: number
+  maxShield?: number
   weapon: GearItem
   /** Seconds remaining, or null to hide the timer. */
   timeLeftSec: number | null
@@ -23,6 +26,8 @@ function fmt(sec: number): string {
 export default function CombatHud({
   lives,
   maxLives,
+  shield = 0,
+  maxShield = 0,
   weapon,
   timeLeftSec,
   onOpenInventory,
@@ -30,6 +35,7 @@ export default function CombatHud({
 }: CombatHudProps) {
   const low = timeLeftSec !== null && timeLeftSec <= 15
   const hearts = Array.from({ length: Math.max(maxLives, lives) }, (_, i) => i < lives)
+  const shields = Array.from({ length: maxShield }, (_, i) => i < shield)
   const holdFire = useHoldFire()
 
   return (
@@ -39,6 +45,11 @@ export default function CombatHud({
           {hearts.map((on, i) => (
             <span key={i} className={`combat-heart${on ? '' : ' is-lost'}`}>
               ♥
+            </span>
+          ))}
+          {shields.map((on, i) => (
+            <span key={`s${i}`} className={`combat-shield${on ? '' : ' is-lost'}`} title="Armor shield">
+              ◆
             </span>
           ))}
         </div>

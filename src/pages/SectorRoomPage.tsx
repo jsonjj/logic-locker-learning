@@ -17,9 +17,11 @@ import WeaponController from '../game3d/combat/WeaponController'
 import { useRun } from '../game3d/state/RunContext'
 import { useInventory } from '../game3d/state/InventoryContext'
 import CombatHud from '../game3d/hud/CombatHud'
+import Hotbar from '../game3d/hud/Hotbar'
+import { useHotbar } from '../game3d/hud/useHotbar'
 import InventoryPanel from '../game3d/hud/InventoryPanel'
 import GameOver from '../game3d/hud/GameOver'
-import { rewardWheel, pickWeightedIndex, type GearItem } from '../game3d/systems/gear'
+import { rewardWheel, pickWeightedIndex, rollConsumableDrop, GEAR, type GearItem } from '../game3d/systems/gear'
 import RewardWheel from '../game3d/hud/RewardWheel'
 import { getObjective } from '../game3d/story/objectives'
 import { R3D, vec3, type LevelResult, type PuzzleResult, type PuzzleReviewItem, type Vec3 } from '../game3d/contracts'
@@ -169,7 +171,7 @@ function RoomInner({ sectorId }: { sectorId: string }) {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [near, setNear] = useState<'puzzle' | 'exit' | null>(null)
   const [result, setResult] = useState<LevelResult | null>(null)
-  const [wheel, setWheel] = useState<{ segments: GearItem[]; winnerIndex: number; flawless: boolean; cores: number } | null>(null)
+  const [wheel, setWheel] = useState<{ segments: GearItem[]; winnerIndex: number; flawless: boolean; cores: number; drop?: string } | null>(null)
   const [isBest, setIsBest] = useState(false)
   const [priorBest, setPriorBest] = useState<LevelResult | null>(null)
   // 'learn' = briefing beat, 'play' = walk + crack the lock, 'results' = scored.
@@ -276,13 +278,26 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen, puzzleOpen, reviewOpen, run.isGameOver])
 
-  // Route guard contact damage into the shared life pool (i-frames handled in CombatContext).
+  // Route guard contact damage into the shared life pool (armor shield soaks it
+  // first; i-frames handled in CombatContext).
   useEffect(() => {
-    combat.setPlayerDamageHandler(() => {
-      run.loseLife()
+    combat.setPlayerDamageHandler((amount) => {
+      run.takeHit(Math.max(1, amount ?? 1))
     })
     return () => combat.setPlayerDamageHandler(null)
   }, [combat, run])
+
+  // Armor shield recharges on entering each room (lives carry over from the hub).
+  useEffect(() => {
+    run.rechargeShield(inv.armorPoints)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectorId, inv.armorPoints])
+
+  // Quick bar: 1-9 to swap weapons / use consumables; consumables heal a life.
+  const activateHotbar = useHotbar({
+    enabled: !blocked,
+    onUseConsumable: (item) => run.gainLife(item.heal ?? 1),
+  })
 
   // Friendly count-up timer while actively playing. There is NO time pressure:
   // the clock never costs a life — it's just a stat the player can ignore.
@@ -320,7 +335,7 @@ function RoomInner({ sectorId }: { sectorId: string }) {
   }
 
   function handleRestart() {
-    run.startRun(3 + inv.bonusLives)
+    run.startRun(3 + inv.bonusLives, inv.armorPoints)
     navigate(R3D.world)
   }
 
@@ -394,12 +409,21 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     // deliberately stingy so fully upgrading a weapon is a long-term grind, not
     // something you finish in a couple of rooms.
     const coreReward = 1 + (flawless ? 1 : 0) + Math.min(comebacks, 2)
+    // Healing drop: playing well restocks your kit, so clean reasoning — not just
+    // hoarding cores — keeps you alive. Granted now; surfaced in the reward toast.
+    const drop = rollConsumableDrop(res.rawMistakes ?? res.mistakes, flawless, comebacks)
+    const dropItem = GEAR[drop.id]
+    let dropText = ''
+    if (dropItem) {
+      inv.addConsumable(drop.id, drop.n)
+      dropText = `+${drop.n} ${dropItem.icon} ${dropItem.name}`
+    }
     const entries = rewardWheel(sectorId, flawless, res.mistakes, inv.owned, comebacks)
     if (entries.length > 0) {
-      setWheel({ segments: entries.map((e) => e.item), winnerIndex: pickWeightedIndex(entries), flawless, cores: coreReward })
+      setWheel({ segments: entries.map((e) => e.item), winnerIndex: pickWeightedIndex(entries), flawless, cores: coreReward, drop: dropText })
     } else {
       inv.addCores(coreReward)
-      setToast(`+${coreReward} 🔧 Tech Cores`)
+      setToast(`+${coreReward} 🔧 Tech Cores${dropText ? ` · ${dropText}` : ''}`)
     }
     if (uid) {
       void saveLevelResult(uid, computed)
@@ -495,11 +519,14 @@ function RoomInner({ sectorId }: { sectorId: string }) {
       <CombatHud
         lives={run.lives}
         maxLives={run.maxLives}
+        shield={run.shield}
+        maxShield={run.maxShield}
         weapon={inv.weapon}
         timeLeftSec={null}
         onOpenInventory={() => setInvOpen(true)}
         toast={toast}
       />
+      {!blocked && <Hotbar onActivate={activateHotbar} />}
 
       {phase === 'play' && !solved && (
         <div className="room-elapsed" aria-label="Elapsed time (no time limit)">
@@ -569,7 +596,7 @@ function RoomInner({ sectorId }: { sectorId: string }) {
             setToast(
               `${added ? 'Unlocked' : 'Bonus'} ${item.icon} ${item.name} · +${wheel.cores} 🔧 Cores${
                 wheel.flawless ? ' · +1 life (flawless)' : ''
-              }`,
+              }${wheel.drop ? ` · ${wheel.drop}` : ''}`,
             )
           }}
           onClose={() => setWheel(null)}

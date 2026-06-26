@@ -40,8 +40,10 @@ import ArenaEnvironment from '../multiplayer/ArenaEnvironment'
 import RemotePlayers from '../multiplayer/RemotePlayers'
 import SharedEnemies, { type EnemiesHandle, type LiveEnemy } from '../multiplayer/SharedEnemies'
 import MpWeapon, { type MpWeaponProfile } from '../multiplayer/MpWeapon'
-import PlayerVitals from '../multiplayer/PlayerVitals'
+import PlayerVitals, { type PlayerVitalsHandle } from '../multiplayer/PlayerVitals'
 import MultiplayerHud from '../multiplayer/MultiplayerHud'
+import Hotbar from '../game3d/hud/Hotbar'
+import { useHotbar } from '../game3d/hud/useHotbar'
 import Cutscene from '../game3d/cutscene/Cutscene'
 import '../styles/multiplayer.css'
 
@@ -90,7 +92,10 @@ function Arena({ code, uid }: { code: string; uid: string }) {
       color: base.color,
     }
   }, [inv.weapon, mastery, roundBuff.damage])
-  const maxHp = MAX_HP + inv.bonusLives + Math.floor(mastery / 2) + roundBuff.hp
+  // Carried-over armor adds effective HP in the arena (real defense), on top of
+  // the lessons-mastery bonus and any intermission round buff.
+  const maxHp = MAX_HP + inv.bonusLives + inv.armorPoints + Math.floor(mastery / 2) + roundBuff.hp
+  const vitalsHandle = useRef<PlayerVitalsHandle | null>(null)
 
   const playersRef = useRef<Record<string, NetPlayer>>({})
   const enemiesViewRef = useRef<Map<string, LiveEnemy> | null>(null)
@@ -309,6 +314,13 @@ function Arena({ code, uid }: { code: string; uid: string }) {
     navigate('/play', { replace: true })
   }, [code, uid, isHost, navigate])
 
+  // Quick bar: 1-9 swaps weapon (applied next shot) / uses a consumable to heal
+  // the local player's HP. Only live while you're up and the round is running.
+  const activateHotbar = useHotbar({
+    enabled: mpIntroDone && alive,
+    onUseConsumable: (item) => vitalsHandle.current?.heal(item.heal ?? 1),
+  })
+
   if (status === 'ended') {
     const ranked = [...roster].sort(
       (a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.kills ?? 0) - (a.kills ?? 0),
@@ -382,6 +394,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
             weapon={mpWeapon}
           />
           <PlayerVitals
+            ref={vitalsHandle}
             enemiesViewRef={enemiesViewRef}
             playing={live}
             alive={alive}
@@ -410,6 +423,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
           power={mpWeapon.damage}
           mastery={mastery}
         />
+        {live && alive && !dead && <Hotbar onActivate={activateHotbar} />}
       </GameStateProvider>
       )}
 

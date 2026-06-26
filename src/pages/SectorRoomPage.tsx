@@ -21,7 +21,8 @@ import Hotbar from '../game3d/hud/Hotbar'
 import { useHotbar } from '../game3d/hud/useHotbar'
 import InventoryPanel from '../game3d/hud/InventoryPanel'
 import GameOver from '../game3d/hud/GameOver'
-import { rewardWheel, pickWeightedIndex, rollConsumableDrop, GEAR, type GearItem } from '../game3d/systems/gear'
+import { rewardWheel, pickWeightedIndex, rollConsumableDrop, rollEnemyDrop, GEAR, type GearItem } from '../game3d/systems/gear'
+import Pickup from '../game3d/combat/Pickup'
 import RewardWheel from '../game3d/hud/RewardWheel'
 import { getObjective } from '../game3d/story/objectives'
 import { R3D, vec3, type LevelResult, type PuzzleResult, type PuzzleReviewItem, type Vec3 } from '../game3d/contracts'
@@ -133,6 +134,29 @@ function setBadRuns(uid: string | undefined, sectorId: string, n: number) {
   }
 }
 
+// A running count of consecutive flawless clears (across all rooms). Hitting a
+// milestone pays out bonus Tech Cores, so mastery — not just grinding — speeds
+// up weapon upgrades. Any unrecovered mistake resets it.
+const FLAWLESS_MILESTONE = 3
+const FLAWLESS_BONUS = 4
+function streakKey(uid: string | undefined) {
+  return `ll-flawless-streak-${uid ?? 'anon'}`
+}
+function getStreak(uid: string | undefined): number {
+  try {
+    return Math.max(0, Number(localStorage.getItem(streakKey(uid))) || 0)
+  } catch {
+    return 0
+  }
+}
+function setStreak(uid: string | undefined, n: number) {
+  try {
+    localStorage.setItem(streakKey(uid), String(Math.max(0, n)))
+  } catch {
+    /* ignore */
+  }
+}
+
 function RoomInner({ sectorId }: { sectorId: string }) {
   const navigate = useNavigate()
   const gs = useGameState()
@@ -172,6 +196,9 @@ function RoomInner({ sectorId }: { sectorId: string }) {
   const [near, setNear] = useState<'puzzle' | 'exit' | null>(null)
   const [result, setResult] = useState<LevelResult | null>(null)
   const [wheel, setWheel] = useState<{ segments: GearItem[]; winnerIndex: number; flawless: boolean; cores: number; drop?: string } | null>(null)
+  // Physical loot a slain enemy left on the floor — walk over it to grab it.
+  const [drops, setDrops] = useState<{ key: number; itemId: string; position: Vec3 }[]>([])
+  const dropKey = useRef(0)
   const [isBest, setIsBest] = useState(false)
   const [priorBest, setPriorBest] = useState<LevelResult | null>(null)
   // 'learn' = briefing beat, 'play' = walk + crack the lock, 'results' = scored.
@@ -294,7 +321,7 @@ function RoomInner({ sectorId }: { sectorId: string }) {
   }, [sectorId, inv.armorPoints])
 
   // Quick bar: 1-9 to swap weapons / use consumables; consumables heal a life.
-  const activateHotbar = useHotbar({
+  const { activate: activateHotbar, cooldownUntil: hotbarCd } = useHotbar({
     enabled: !blocked,
     onUseConsumable: (item) => run.gainLife(item.heal ?? 1),
   })
@@ -330,8 +357,20 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run.isGameOver])
 
-  function handleEnemyDeath(id: number) {
+  function handleEnemyDeath(id: number, pos?: { x: number; y: number; z: number }) {
     setEnemies((es) => es.filter((e) => e.id !== id))
+    if (!pos) return
+    const dropId = rollEnemyDrop()
+    if (dropId) {
+      setDrops((d) => [...d, { key: dropKey.current++, itemId: dropId, position: { x: pos.x, y: 0, z: pos.z } }])
+    }
+  }
+
+  function grabDrop(key: number, itemId: string) {
+    const item = GEAR[itemId]
+    if (item?.slot === 'consumable') inv.addConsumable(itemId, 1)
+    setDrops((d) => d.filter((x) => x.key !== key))
+    setToast(`Picked up ${item?.icon ?? ''} ${item?.name ?? 'item'}`)
   }
 
   function handleRestart() {
@@ -408,7 +447,20 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     // gear wheel — clean and fought-back (comeback) runs earn a bit more. Kept
     // deliberately stingy so fully upgrading a weapon is a long-term grind, not
     // something you finish in a couple of rooms.
-    const coreReward = 1 + (flawless ? 1 : 0) + Math.min(comebacks, 2)
+    // Flawless streak: chain clean clears for a periodic Tech Core windfall.
+    let streakText = ''
+    let streakBonus = 0
+    if (flawless) {
+      const s = getStreak(uid) + 1
+      setStreak(uid, s)
+      if (s % FLAWLESS_MILESTONE === 0) {
+        streakBonus = FLAWLESS_BONUS
+        streakText = `🔥 ${s} flawless streak bonus!`
+      }
+    } else {
+      setStreak(uid, 0)
+    }
+    const coreReward = 1 + (flawless ? 1 : 0) + Math.min(comebacks, 2) + streakBonus
     // Healing drop: playing well restocks your kit, so clean reasoning — not just
     // hoarding cores — keeps you alive. Granted now; surfaced in the reward toast.
     const drop = rollConsumableDrop(res.rawMistakes ?? res.mistakes, flawless, comebacks)
@@ -418,12 +470,13 @@ function RoomInner({ sectorId }: { sectorId: string }) {
       inv.addConsumable(drop.id, drop.n)
       dropText = `+${drop.n} ${dropItem.icon} ${dropItem.name}`
     }
+    const extra = [dropText, streakText].filter(Boolean).join(' · ')
     const entries = rewardWheel(sectorId, flawless, res.mistakes, inv.owned, comebacks)
     if (entries.length > 0) {
-      setWheel({ segments: entries.map((e) => e.item), winnerIndex: pickWeightedIndex(entries), flawless, cores: coreReward, drop: dropText })
+      setWheel({ segments: entries.map((e) => e.item), winnerIndex: pickWeightedIndex(entries), flawless, cores: coreReward, drop: extra })
     } else {
       inv.addCores(coreReward)
-      setToast(`+${coreReward} 🔧 Tech Cores${dropText ? ` · ${dropText}` : ''}`)
+      setToast(`+${coreReward} 🔧 Tech Cores${extra ? ` · ${extra}` : ''}`)
     }
     if (uid) {
       void saveLevelResult(uid, computed)
@@ -458,6 +511,7 @@ function RoomInner({ sectorId }: { sectorId: string }) {
     setPuzzleOpen(false)
     setElapsedSec(0)
     setEnemies(buildEnemies(sector?.order ?? 0, def?.size ?? [24, 20], inv.prestige))
+    setDrops([])
     gs.setPaused(false)
     gs.setDanger(0)
     timer.reset()
@@ -495,6 +549,9 @@ function RoomInner({ sectorId }: { sectorId: string }) {
             onDeath={handleEnemyDeath}
           />
         ))}
+        {drops.map((d) => (
+          <Pickup key={d.key} itemId={d.itemId} position={d.position} onPickup={() => grabDrop(d.key, d.itemId)} />
+        ))}
         <WeaponController disabled={blocked} />
       </GameCanvas>
 
@@ -526,7 +583,13 @@ function RoomInner({ sectorId }: { sectorId: string }) {
         onOpenInventory={() => setInvOpen(true)}
         toast={toast}
       />
-      {!blocked && <Hotbar onActivate={activateHotbar} />}
+      {!blocked && (
+        <Hotbar
+          onActivate={activateHotbar}
+          cooldownUntil={hotbarCd}
+          urgent={run.lives <= 1 && run.shield <= 0}
+        />
+      )}
 
       {phase === 'play' && !solved && (
         <div className="room-elapsed" aria-label="Elapsed time (no time limit)">

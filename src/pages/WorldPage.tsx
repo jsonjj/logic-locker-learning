@@ -19,7 +19,7 @@ import Hotbar from '../game3d/hud/Hotbar'
 import { useHotbar } from '../game3d/hud/useHotbar'
 import InventoryPanel from '../game3d/hud/InventoryPanel'
 import GameOver from '../game3d/hud/GameOver'
-import { SCATTERED_PICKUPS, gear } from '../game3d/systems/gear'
+import { SCATTERED_PICKUPS, gear, rollEnemyDrop, GEAR } from '../game3d/systems/gear'
 import { getObjective, getIntroLines, getMissionTagline } from '../game3d/story/objectives'
 import Cutscene from '../game3d/cutscene/Cutscene'
 import { R3D, vec3, type SectorId, type Vec3 } from '../game3d/contracts'
@@ -98,6 +98,8 @@ function WorldInner() {
   const [nearDoor, setNearDoor] = useState<SectorId | null>(null)
   const [invOpen, setInvOpen] = useState(false)
   const [guards, setGuards] = useState<HubEnemy[]>(HUB_GUARDS)
+  const [drops, setDrops] = useState<{ key: number; itemId: string; position: Vec3 }[]>([])
+  const dropKey = useRef(0)
   const [toast, setToast] = useState<string | null>(null)
   const nextEnemyId = useRef(100)
   const gameOverRef = useRef(run.isGameOver)
@@ -168,7 +170,7 @@ function WorldInner() {
   }, [combat, run])
 
   // Quick bar: 1-9 to swap weapons / use consumables; consumables heal a life.
-  const activateHotbar = useHotbar({
+  const { activate: activateHotbar, cooldownUntil: hotbarCd } = useHotbar({
     enabled: !blocked,
     onUseConsumable: (item) => run.gainLife(item.heal ?? 1),
   })
@@ -211,9 +213,26 @@ function WorldInner() {
     }
   }
 
+  function handleGuardDeath(id: number, pos?: { x: number; y: number; z: number }) {
+    setGuards((gs2) => gs2.filter((x) => x.id !== id))
+    if (!pos) return
+    const dropId = rollEnemyDrop()
+    if (dropId) {
+      setDrops((d) => [...d, { key: dropKey.current++, itemId: dropId, position: { x: pos.x, y: 0, z: pos.z } }])
+    }
+  }
+
+  function grabDrop(key: number, itemId: string) {
+    const item = GEAR[itemId]
+    if (item?.slot === 'consumable') inv.addConsumable(itemId, 1)
+    setDrops((d) => d.filter((x) => x.key !== key))
+    setToast(`Picked up ${item?.icon ?? ''} ${item?.name ?? 'item'}`)
+  }
+
   function handleRestart() {
     run.startRun(3 + inv.bonusLives, inv.armorPoints)
     setGuards(HUB_GUARDS)
+    setDrops([])
   }
 
   useEffect(() => {
@@ -287,11 +306,14 @@ function WorldInner() {
             kind={g.kind}
             damage={g.damage}
             paused={blocked}
-            onDeath={(id) => setGuards((gs2) => gs2.filter((x) => x.id !== id))}
+            onDeath={handleGuardDeath}
           />
         ))}
         {SCATTERED_PICKUPS.filter((id) => !inv.isOwned(id)).map((id, i) => (
           <Pickup key={id} itemId={id} position={HUB_PICKUP_SPOTS[i % HUB_PICKUP_SPOTS.length]} onPickup={grabPickup} />
+        ))}
+        {drops.map((d) => (
+          <Pickup key={d.key} itemId={d.itemId} position={d.position} onPickup={() => grabDrop(d.key, d.itemId)} />
         ))}
         <WeaponController disabled={blocked} />
       </GameCanvas>
@@ -326,7 +348,13 @@ function WorldInner() {
         onOpenInventory={() => setInvOpen(true)}
         toast={toast}
       />
-      {!blocked && <Hotbar onActivate={activateHotbar} />}
+      {!blocked && (
+        <Hotbar
+          onActivate={activateHotbar}
+          cooldownUntil={hotbarCd}
+          urgent={run.lives <= 1 && run.shield <= 0}
+        />
+      )}
       <InventoryPanel open={invOpen} onClose={() => setInvOpen(false)} />
       <GameOver open={run.isGameOver} onRestart={handleRestart} />
 

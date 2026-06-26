@@ -250,7 +250,7 @@ function FinaleInner() {
   }, [combat, run])
 
   // Quick bar: 1-9 to swap weapons / use consumables; consumables heal a life.
-  const activateHotbar = useHotbar({
+  const { activate: activateHotbar, cooldownUntil: hotbarCd } = useHotbar({
     enabled: !blocked,
     onUseConsumable: (item) => run.gainLife(item.heal ?? 1),
   })
@@ -542,7 +542,13 @@ function FinaleInner() {
         onOpenInventory={() => setInvOpen(true)}
         toast={toast}
       />
-      {!blocked && <Hotbar onActivate={activateHotbar} />}
+      {!blocked && (
+        <Hotbar
+          onActivate={activateHotbar}
+          cooldownUntil={hotbarCd}
+          urgent={run.lives <= 1 && run.shield <= 0}
+        />
+      )}
       <InventoryPanel open={invOpen} onClose={() => setInvOpen(false)} />
       <GameOver
         open={run.isGameOver}

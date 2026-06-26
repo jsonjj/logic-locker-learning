@@ -1,6 +1,9 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { GEAR, type GearItem } from '../systems/gear'
 import { useInventory } from '../state/InventoryContext'
+
+/** Brief lockout after using a consumable so they can't be panic-spammed. */
+export const HOTBAR_COOLDOWN_MS = 750
 
 interface UseHotbarOpts {
   /** When false the 1-9 keys are ignored (menu / puzzle open, game over, etc.). */
@@ -19,6 +22,8 @@ interface UseHotbarOpts {
 export function useHotbar({ enabled, onUseConsumable }: UseHotbarOpts) {
   // Aliased so the rules-of-hooks lint doesn't mistake this context method for a hook.
   const { hotbar, equip, isOwned, useConsumable: spendConsumable } = useInventory()
+  const [cooldownUntil, setCooldownUntil] = useState(0)
+  const cooldownRef = useRef(0)
 
   const activate = useCallback(
     (index: number) => {
@@ -29,8 +34,14 @@ export function useHotbar({ enabled, onUseConsumable }: UseHotbarOpts) {
       if (item.slot === 'weapon') {
         if (isOwned(id)) equip(id)
       } else if (item.slot === 'consumable') {
+        if (Date.now() < cooldownRef.current) return
         const used = spendConsumable(id)
-        if (used) onUseConsumable?.(used)
+        if (used) {
+          onUseConsumable?.(used)
+          const until = Date.now() + HOTBAR_COOLDOWN_MS
+          cooldownRef.current = until
+          setCooldownUntil(until)
+        }
       }
     },
     [hotbar, equip, isOwned, spendConsumable, onUseConsumable],
@@ -50,5 +61,5 @@ export function useHotbar({ enabled, onUseConsumable }: UseHotbarOpts) {
     return () => window.removeEventListener('keydown', onKey)
   }, [enabled, activate])
 
-  return activate
+  return { activate, cooldownUntil }
 }

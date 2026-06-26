@@ -316,7 +316,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
 
   // Quick bar: 1-9 swaps weapon (applied next shot) / uses a consumable to heal
   // the local player's HP. Only live while you're up and the round is running.
-  const activateHotbar = useHotbar({
+  const { activate: activateHotbar, cooldownUntil: hotbarCd } = useHotbar({
     enabled: mpIntroDone && alive,
     onUseConsumable: (item) => vitalsHandle.current?.heal(item.heal ?? 1),
   })
@@ -423,7 +423,7 @@ function Arena({ code, uid }: { code: string; uid: string }) {
           power={mpWeapon.damage}
           mastery={mastery}
         />
-        {live && alive && !dead && <Hotbar onActivate={activateHotbar} />}
+        {live && alive && !dead && <Hotbar onActivate={activateHotbar} cooldownUntil={hotbarCd} />}
       </GameStateProvider>
       )}
 

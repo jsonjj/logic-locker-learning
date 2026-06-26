@@ -289,6 +289,18 @@ export function rollConsumableDrop(
   return { id: 'stim', n: 1 + (comebacks >= 2 ? 1 : 0) }
 }
 
+/**
+ * Loot roll for a slain enemy. Most kills drop nothing (keeps healing scarce and
+ * the pickups exciting); a small chance drops a Stim, with a rare Med Pack — so
+ * fighting through a horde, not just clearing the puzzle, keeps you stocked.
+ */
+export function rollEnemyDrop(): string | null {
+  const r = Math.random()
+  if (r < 0.04) return 'medpack'
+  if (r < 0.18) return 'stim'
+  return null
+}
+
 /** The starting loadout (always owned) — a guaranteed but feeble gun. */
 export const STARTER_WEAPON = 'popgun'
 

@@ -20,7 +20,7 @@ export interface EnemyProps {
   damage?: number
   /** Stop acting (e.g. puzzle open / paused). */
   paused?: boolean
-  onDeath?: (id: number) => void
+  onDeath?: (id: number, pos?: { x: number; y: number; z: number }) => void
 }
 
 const CONTACT_RANGE = 1.7
@@ -127,7 +127,8 @@ export default function Enemy({
         if (hpRef.current <= 0) {
           alive.current = false
           setDead(true)
-          onDeath?.(id)
+          const t = body.current?.translation()
+          onDeath?.(id, t ? { x: t.x, y: t.y, z: t.z } : undefined)
           return true
         }
         return false

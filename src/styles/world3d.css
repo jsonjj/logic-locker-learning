@@ -259,7 +259,8 @@
 .mastery-loop {
   position: absolute;
   left: 16px;
-  bottom: 16px;
+  /* Sits above the bottom-left Leaderboard button so the two don't overlap. */
+  bottom: 76px;
   z-index: 9;
   width: 232px;
   padding: 12px 14px 14px;

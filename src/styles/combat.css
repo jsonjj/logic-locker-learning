@@ -288,6 +288,115 @@
   cursor: default;
 }
 
+/* Compact tile grid — the slim "what you own" view. */
+.inv-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: 8px;
+}
+
+.inv-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 8px;
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+  touch-action: none;
+  transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.inv-tile:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.inv-tile.is-equipped {
+  border-color: rgba(245, 165, 36, 0.55);
+  background: rgba(245, 165, 36, 0.08);
+}
+
+.inv-tile-icon {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.inv-tile-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #dfe6ef;
+  line-height: 1.2;
+}
+
+.inv-tile-badge,
+.inv-tile-tag {
+  position: absolute;
+  top: 6px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+.inv-tile-badge {
+  right: 6px;
+  color: #0c0f15;
+  background: #ffd166;
+}
+
+.inv-tile-tag {
+  left: 6px;
+  color: #ffcf5a;
+  background: rgba(245, 165, 36, 0.18);
+  letter-spacing: 0.5px;
+}
+
+/* Detail / upgrade screen */
+.inv-back {
+  background: none;
+  border: none;
+  color: #9aa6b6;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px 0 10px;
+}
+
+.inv-back:hover {
+  color: #fff;
+}
+
+.inv-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+.inv-addbar {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #dfe6ef;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.inv-addbar:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .inv-tip {
   color: #8c98a8;
   font-size: 0.82rem;

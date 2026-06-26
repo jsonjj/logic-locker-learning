@@ -423,7 +423,9 @@ function Arena({ code, uid }: { code: string; uid: string }) {
           power={mpWeapon.damage}
           mastery={mastery}
         />
-        {live && alive && !dead && <Hotbar onActivate={activateHotbar} cooldownUntil={hotbarCd} />}
+        {live && alive && !dead && (
+          <Hotbar onActivate={activateHotbar} cooldownUntil={hotbarCd} urgent={hp <= maxHp * 0.3} />
+        )}
       </GameStateProvider>
       )}
 
